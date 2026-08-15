@@ -36,6 +36,7 @@ Item {
         asynchronous: true
         cache: false
         smooth: true
+        autoTransform: true
         clip: true
         visible: false
         layer.enabled: true

@@ -35,6 +35,9 @@ Kirigami.FormLayout {
     property alias cfg_Meteors: meteors.checked
     property bool cfg_MeteorsDefault: true
 
+    property alias cfg_DayNight: dayNight.checked
+    property bool cfg_DayNightDefault: true
+
     property int cfg_Mode: 0
     property int cfg_ModeDefault: 0
 
@@ -124,6 +127,33 @@ Kirigami.FormLayout {
         // exactly like the drift does.
         enabled: animate.checked
         text: i18nd(root.dom, "A shooting star now and then")
+    }
+
+    QQC2.Label {
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+        enabled: animate.checked && meteors.checked
+        wrapMode: Text.WordWrap
+        font: Kirigami.Theme.smallFont
+        text: i18nd(root.dom,
+            "On a real shower's peak night — the Perseids, the Geminids — they "
+            + "arrive every half minute or so, all along one shared radiant.")
+    }
+
+    QQC2.CheckBox {
+        id: dayNight
+        Kirigami.FormData.label: i18nd(root.dom, "Sky:")
+        text: i18nd(root.dom, "Deeper nights, softer days")
+    }
+
+    QQC2.Label {
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+        enabled: dayNight.checked
+        wrapMode: Text.WordWrap
+        font: Kirigami.Theme.smallFont
+        text: i18nd(root.dom,
+            "Stars brighten and twinkle a little harder late at night and ease "
+            + "off in the daytime. A few percent either way — the sky keeps its "
+            + "character.")
     }
 
     // --------------------------------------------------------------- gallery

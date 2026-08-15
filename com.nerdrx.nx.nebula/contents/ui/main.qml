@@ -49,6 +49,7 @@ WallpaperItem {
         speed: Math.max(0.25, Math.min(3.0, root.configuration.Speed / 100))
         twinkle: root.configuration.Twinkle
         meteors: root.configuration.Meteors
+        dayNight: root.configuration.DayNight
 
         onReadyChanged: {
             if (nebula.ready) {

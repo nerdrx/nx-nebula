@@ -224,6 +224,7 @@ Item {
             asynchronous: true
             cache: false
             clip: true
+            autoTransform: true
         }
         Rectangle {
             anchors.fill: parent

@@ -33,6 +33,10 @@
       <label>A shooting star every minute or two</label>
       <default>true</default>
     </entry>
+    <entry name="DayNight" type="bool">
+      <label>Deeper nights, softer days: the sky follows the wall clock</label>
+      <default>true</default>
+    </entry>
 
     <!-- what sits on top of it -->
     <entry name="Mode" type="int">

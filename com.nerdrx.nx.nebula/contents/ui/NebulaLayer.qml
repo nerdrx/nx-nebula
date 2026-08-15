@@ -48,6 +48,55 @@ Item {
     /** A meteor every minute or two. Rare enough to stay an event. */
     property bool meteors: true
 
+    /** Let the wall clock tune the sky: deeper nights, softer days. */
+    property bool dayNight: true
+
+    /*
+        0 = full day, 1 = full night, refreshed once a minute.
+
+        Everything driven by this is a multiplier that passes through 1.0 at
+        0.5, so switching the feature off — which pins nightNow at 0.5 — gives
+        exactly the sky this wallpaper always had, and the swings around it
+        are a few percent either way: stars brighten and twinkle harder late
+        at night, ease off by day, the nebula bodies glow a touch deeper in
+        the dark. Dawn and dusk are fixed civil hours with smoothstep ramps;
+        real solar times need a location, and a wallpaper has no business
+        asking for one.
+    */
+    property real night: 0.5
+    readonly property real nightNow: dayNight ? night : 0.5
+
+    function skyFactor(when: date): real {
+        const smooth = t => {
+            t = Math.max(0, Math.min(1, t));
+            return t * t * (3 - 2 * t);
+        };
+        const h = when.getHours() + when.getMinutes() / 60;
+        let day;
+        if (h < 5.5) {
+            day = 0;
+        } else if (h < 7.5) {
+            day = smooth((h - 5.5) / 2);        // dawn
+        } else if (h < 19.5) {
+            day = 1;
+        } else if (h < 21.5) {
+            day = 1 - smooth((h - 19.5) / 2);   // dusk
+        } else {
+            day = 0;
+        }
+        return 1 - day;
+    }
+
+    // Per-minute steps through a two-hour ramp move this by well under a
+    // percent, so no Behavior is needed — the sky just is the right sky.
+    Timer {
+        running: nebula.dayNight && nebula.animating
+        repeat: true
+        triggeredOnStart: true
+        interval: 60000
+        onTriggered: nebula.night = nebula.skyFactor(new Date())
+    }
+
     /** True once every sprite has settled, one way or the other. */
     readonly property bool ready: [
         violet, cyan, magenta, starsFar, starsNear,
@@ -93,11 +142,17 @@ Item {
         // above so an animation never fights a binding.
         property real breathe: 0
 
+        // Every instance rolls its own ±8% on every period: two screens (or
+        // desktop and lock screen) running this wallpaper must not breathe
+        // in lockstep, and identical loops side by side read as one texture
+        // copy-pasted rather than two skies.
+        readonly property real jog: 0.92 + Math.random() * 0.16
+
         readonly property real ax: direction * amplitudeX * nebula.unit
         readonly property real ay: direction * amplitudeY * nebula.unit
-        readonly property int qx: Math.max(16, Math.round(periodX / 4 / nebula.speed))
-        readonly property int qy: Math.max(16, Math.round(periodY / 4 / nebula.speed))
-        readonly property int qb: Math.max(16, Math.round(periodBreathe / 4 / nebula.speed))
+        readonly property int qx: Math.max(16, Math.round(periodX * jog / 4 / nebula.speed))
+        readonly property int qy: Math.max(16, Math.round(periodY * jog / 4 / nebula.speed))
+        readonly property int qb: Math.max(16, Math.round(periodBreathe * jog / 4 / nebula.speed))
 
         width: nebula.unit * spanUnits
         height: width
@@ -105,7 +160,8 @@ Item {
         y: nebula.height * relY - height / 2
         rotation: spin
         scale: 1 + breathe
-        opacity: blobOpacity
+        // ±7% around the authored value: a touch deeper in the dark.
+        opacity: blobOpacity * (0.93 + 0.14 * nebula.nightNow)
 
         fillMode: Image.Stretch
         smooth: true
@@ -162,8 +218,12 @@ Item {
         property real direction: 1
 
         property real wobble: 0
-        readonly property real reach: direction * swing
-        readonly property int q: Math.max(16, Math.round(period / 4 / nebula.speed))
+        readonly property real jog: 0.92 + Math.random() * 0.16
+        // Stars twinkle a quarter harder late at night, a quarter softer by
+        // day. The night-time peak can push a whisker past 1.0, where opacity
+        // clamps: the brightest instant flattens rather than breaking.
+        readonly property real reach: direction * swing * (0.75 + 0.5 * nebula.nightNow)
+        readonly property int q: Math.max(16, Math.round(period * jog / 4 / nebula.speed))
 
         anchors.centerIn: parent
         width: parent.width * 1.05
@@ -251,6 +311,7 @@ Item {
             id: starsFar
             source: "../images/stars-far.png"
             anchors.centerIn: parent
+            property real jog: 0.94 + Math.random() * 0.12
             // 5% overscan gives the drift somewhere to go without ever
             // exposing an edge.
             width: parent.width * 1.05
@@ -259,16 +320,17 @@ Item {
             clip: true
             smooth: true
             asynchronous: true
-            opacity: 0.85
+            // 0.85 at the neutral point, brighter after dusk, dimmer by day.
+            opacity: 0.85 * (0.88 + 0.24 * nebula.nightNow)
             transform: Translate { id: farDrift }
 
             SequentialAnimation {
                 running: true
                 paused: !nebula.animating
                 loops: Animation.Infinite
-                NumberAnimation { target: farDrift; property: "x"; from: 0; to: nebula.unit * 0.005; duration: Math.round(41000 / nebula.speed); easing.type: Easing.InOutSine }
-                NumberAnimation { target: farDrift; property: "x"; from: nebula.unit * 0.005; to: -nebula.unit * 0.005; duration: Math.round(82000 / nebula.speed); easing.type: Easing.InOutSine }
-                NumberAnimation { target: farDrift; property: "x"; from: -nebula.unit * 0.005; to: 0; duration: Math.round(41000 / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: farDrift; property: "x"; from: 0; to: nebula.unit * 0.005; duration: Math.round(41000 * starsFar.jog / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: farDrift; property: "x"; from: nebula.unit * 0.005; to: -nebula.unit * 0.005; duration: Math.round(82000 * starsFar.jog / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: farDrift; property: "x"; from: -nebula.unit * 0.005; to: 0; duration: Math.round(41000 * starsFar.jog / nebula.speed); easing.type: Easing.InOutSine }
             }
         }
 
@@ -276,12 +338,16 @@ Item {
             id: starsNear
             source: "../images/stars-near.png"
             anchors.centerIn: parent
+            property real jog: 0.94 + Math.random() * 0.12
             width: parent.width * 1.05
             height: parent.height * 1.05
             fillMode: Image.PreserveAspectCrop
             clip: true
             smooth: true
             asynchronous: true
+            // Full brightness from dusk on (the formula tops out just past
+            // 1.0 and clamps); only the day softens the near field.
+            opacity: Math.min(1, 0.90 + 0.24 * nebula.nightNow)
             transform: Translate { id: nearDrift }
 
             // Twice the throw and a shorter period than the far layer: the
@@ -290,9 +356,9 @@ Item {
                 running: true
                 paused: !nebula.animating
                 loops: Animation.Infinite
-                NumberAnimation { target: nearDrift; property: "x"; from: 0; to: nebula.unit * 0.010; duration: Math.round(30000 / nebula.speed); easing.type: Easing.InOutSine }
-                NumberAnimation { target: nearDrift; property: "x"; from: nebula.unit * 0.010; to: -nebula.unit * 0.010; duration: Math.round(60000 / nebula.speed); easing.type: Easing.InOutSine }
-                NumberAnimation { target: nearDrift; property: "x"; from: -nebula.unit * 0.010; to: 0; duration: Math.round(30000 / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: nearDrift; property: "x"; from: 0; to: nebula.unit * 0.010; duration: Math.round(30000 * starsNear.jog / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: nearDrift; property: "x"; from: nebula.unit * 0.010; to: -nebula.unit * 0.010; duration: Math.round(60000 * starsNear.jog / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: nearDrift; property: "x"; from: -nebula.unit * 0.010; to: 0; duration: Math.round(30000 * starsNear.jog / nebula.speed); easing.type: Easing.InOutSine }
             }
         }
 
@@ -352,8 +418,10 @@ Item {
         }
 
         // 45s to 2.5min between flights, re-rolled every time so there is no
-        // rhythm to catch. Stops dead with the rest of the motion; a flight
-        // already in the air pauses mid-streak and finishes on return.
+        // rhythm to catch — except on a real shower's peak night, when they
+        // come every 12 to 30 seconds. Stops dead with the rest of the
+        // motion; a flight already in the air pauses mid-streak and finishes
+        // on return.
         Timer {
             id: meteorClock
             running: nebula.meteors && nebula.animating
@@ -361,18 +429,66 @@ Item {
             interval: 45000 + Math.round(Math.random() * 105000)
             onTriggered: {
                 nebula.meteorNow();
-                interval = 45000 + Math.round(Math.random() * 105000);
+                interval = nebula.showerRadiant(new Date()) >= 0
+                    ? 12000 + Math.round(Math.random() * 18000)
+                    : 45000 + Math.round(Math.random() * 105000);
             }
         }
+    }
+
+    /*
+        The major annual meteor showers, by peak night (month, day).
+
+        Within a day and a half of a peak the scheduler above runs hot, and
+        every flight leaves along one shared radiant — meteors in a shower are
+        parallel, entering along the parent comet's orbit, and that coherence
+        is what makes a shower look like a shower instead of a busy night.
+    */
+    readonly property var showerPeaks: [
+        [1, 3],    // Quadrantids
+        [4, 22],   // Lyrids
+        [5, 6],    // Eta Aquariids
+        [7, 30],   // Delta Aquariids
+        [8, 12],   // Perseids
+        [10, 21],  // Orionids
+        [11, 17],  // Leonids
+        [12, 14],  // Geminids
+        [12, 22]   // Ursids
+    ]
+
+    /** The night's shared flight angle when a shower is peaking, else -1.
+        Derived from the date, so it holds steady all night and every
+        instance of the wallpaper agrees on it. */
+    function showerRadiant(when: date): real {
+        // Date-only distance: the peak day and one calendar day either side,
+        // so the shower runs all of the peak night and its two shoulders no
+        // matter what hour it is checked at. The seed comes from the *peak*,
+        // not from today — a shower's radiant must not swing between its
+        // nights, nor at midnight in the middle of one.
+        const day = new Date(when.getFullYear(), when.getMonth(), when.getDate());
+        for (const peak of nebula.showerPeaks) {
+            const nearest = new Date(when.getFullYear(), peak[0] - 1, peak[1]);
+            if (Math.abs(day - nearest) <= 1.05 * 86400000) {
+                const seed = (peak[0] - 1) * 31 + peak[1];
+                const pitch = 16 + (seed * 7) % 24;
+                return (seed % 2 === 0) ? pitch : 180 - pitch;
+            }
+        }
+        return -1;
     }
 
     /** Fire one meteor immediately. The scheduler's entry point, kept public
         because an offscreen harness cannot wait minutes for the real timer. */
     function meteorNow(): void {
         const toRad = Math.PI / 180;
-        // Shallow and always downward; half the flights travel leftward.
+        // Shallow and always downward; half the flights travel leftward —
+        // unless a shower is peaking, in which case tonight's radiant rules
+        // and each flight only scatters a few degrees around it.
+        const radiant = nebula.showerRadiant(new Date());
         const pitch = 18 + Math.random() * 20;
-        const angle = Math.random() < 0.5 ? pitch : 180 - pitch;
+        const angle = radiant >= 0
+            ? radiant + (Math.random() * 12 - 6)
+            : (Math.random() < 0.5 ? pitch : 180 - pitch);
         const dist = nebula.unit * (0.16 + Math.random() * 0.14);
         // Screen y grows downward, so +sin is down for either direction.
         const dx = Math.cos(angle * toRad) * dist;

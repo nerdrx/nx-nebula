@@ -137,6 +137,9 @@ Item {
         cache: false
         smooth: true
         mipmap: true
+        // Cameras store portrait shots sideways plus an EXIF flag; without
+        // this Qt shows them the way the sensor saw them.
+        autoTransform: true
         opacity: shown ? 1 : 0
         scale: 1 + zoom
 
