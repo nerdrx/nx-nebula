@@ -37,6 +37,9 @@ Item {
     /** 0 = follow the locale, 1 = force 12-hour, 2 = force 24-hour. */
     property int timeFormat: 0
 
+    /** OLED care: wander the whole overlay a few pixels over minutes. */
+    property bool drift: false
+
     onTimeFormatChanged: clock.refresh()
 
     readonly property real daySize: Math.max(18, Math.round(height * 0.075))
@@ -101,87 +104,121 @@ Item {
         }
     }
 
-    // A soft horizontal wash. It fades to nothing top and bottom and runs
-    // the full width, so it has no edge anywhere a viewer could catch.
-    Rectangle {
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.verticalCenter: block.verticalCenter
-        width: parent.width
-        height: block.height * 3.2
-        opacity: clock.overPhotos ? 1 : 0
-        gradient: Gradient {
-            GradientStop { position: 0.00; color: Qt.rgba(0.016, 0.008, 0.039, 0.0) }
-            GradientStop { position: 0.28; color: Qt.rgba(0.016, 0.008, 0.039, 0.40) }
-            GradientStop { position: 0.50; color: Qt.rgba(0.016, 0.008, 0.039, 0.50) }
-            GradientStop { position: 0.72; color: Qt.rgba(0.016, 0.008, 0.039, 0.40) }
-            GradientStop { position: 1.00; color: Qt.rgba(0.016, 0.008, 0.039, 0.0) }
+    // Everything visible lives on this sheet so the burn-in wander moves the
+    // scrim and the type as one. The overlay is the brightest static thing
+    // an OLED desktop shows all day; a Lissajous of a few pixels over
+    // minutes spreads that load. Offsets are rounded to whole pixels — the
+    // type must never land between texels and soften.
+    Item {
+        id: sheet
+        anchors.fill: parent
+
+        property real wx: 0
+        property real wy: 0
+        transform: Translate {
+            x: Math.round(sheet.wx)
+            y: Math.round(sheet.wy)
         }
 
-        Behavior on opacity {
-            NumberAnimation { duration: 320; easing.type: Easing.OutCubic }
+        SequentialAnimation {
+            running: true
+            paused: !(clock.drift && clock.active)
+            loops: Animation.Infinite
+            NumberAnimation { target: sheet; property: "wx"; from: 0; to: 9; duration: 71000; easing.type: Easing.InOutSine }
+            NumberAnimation { target: sheet; property: "wx"; from: 9; to: -9; duration: 142000; easing.type: Easing.InOutSine }
+            NumberAnimation { target: sheet; property: "wx"; from: -9; to: 0; duration: 71000; easing.type: Easing.InOutSine }
         }
-    }
-
-    Column {
-        id: block
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: clock.position === 1
-            ? Math.round(parent.height * 0.11)
-            : Math.round((parent.height - height) / 2)
-        spacing: Math.round(clock.daySize * 0.30)
-
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            // Qt puts the letter spacing after the last glyph too, so a
-            // centred tracked line reads half a space too far left.
-            anchors.horizontalCenterOffset: Math.round(font.letterSpacing / 2)
-            text: clock.dayText
-            color: "#efeaff"
-            style: Text.Outline
-            styleColor: Qt.rgba(0, 0, 0, 0.55)
-            font.pixelSize: clock.daySize
-            font.weight: Font.DemiBold
-            font.letterSpacing: clock.daySize * 0.35
+        SequentialAnimation {
+            running: true
+            paused: !(clock.drift && clock.active)
+            loops: Animation.Infinite
+            NumberAnimation { target: sheet; property: "wy"; from: 0; to: -6; duration: 94000; easing.type: Easing.InOutSine }
+            NumberAnimation { target: sheet; property: "wy"; from: -6; to: 6; duration: 188000; easing.type: Easing.InOutSine }
+            NumberAnimation { target: sheet; property: "wy"; from: 6; to: 0; duration: 94000; easing.type: Easing.InOutSine }
         }
 
-        Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.horizontalCenterOffset: Math.round(font.letterSpacing / 2)
-            text: clock.dateText
-            color: "#efeaff"
-            opacity: 0.86
-            style: Text.Outline
-            styleColor: Qt.rgba(0, 0, 0, 0.5)
-            font.pixelSize: clock.dateSize
-            font.weight: Font.Medium
-            font.letterSpacing: clock.dateSize * 0.34
-        }
-
-        // The one NX flourish: violet into cyan, fading out at both ends so
-        // it is a hairline and not a rule (DESIGN §1 — no solid dividers).
+        // A soft horizontal wash. It fades to nothing top and bottom and runs
+        // the full width, so it has no edge anywhere a viewer could catch.
         Rectangle {
             anchors.horizontalCenter: parent.horizontalCenter
-            width: Math.round(clock.daySize * 5.2)
-            height: 1
+            anchors.verticalCenter: block.verticalCenter
+            width: parent.width
+            height: block.height * 3.2
+            opacity: clock.overPhotos ? 1 : 0
             gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.00; color: Qt.rgba(0.467, 0.0, 1.0, 0.0) }
-                GradientStop { position: 0.30; color: Qt.rgba(0.467, 0.0, 1.0, 0.55) }
-                GradientStop { position: 0.72; color: Qt.rgba(0.0, 0.898, 1.0, 0.42) }
-                GradientStop { position: 1.00; color: Qt.rgba(0.0, 0.898, 1.0, 0.0) }
+                GradientStop { position: 0.00; color: Qt.rgba(0.016, 0.008, 0.039, 0.0) }
+                GradientStop { position: 0.28; color: Qt.rgba(0.016, 0.008, 0.039, 0.40) }
+                GradientStop { position: 0.50; color: Qt.rgba(0.016, 0.008, 0.039, 0.50) }
+                GradientStop { position: 0.72; color: Qt.rgba(0.016, 0.008, 0.039, 0.40) }
+                GradientStop { position: 1.00; color: Qt.rgba(0.016, 0.008, 0.039, 0.0) }
+            }
+
+            Behavior on opacity {
+                NumberAnimation { duration: 320; easing.type: Easing.OutCubic }
             }
         }
 
-        Text {
+        Column {
+            id: block
             anchors.horizontalCenter: parent.horizontalCenter
-            anchors.horizontalCenterOffset: Math.round(font.letterSpacing / 2)
-            text: clock.timeText
-            color: "#efeaff"
-            style: Text.Outline
-            styleColor: Qt.rgba(0, 0, 0, 0.5)
-            font.pixelSize: clock.timeSize
-            font.weight: Font.Normal
-            font.letterSpacing: clock.timeSize * 0.22
+            y: clock.position === 1
+                ? Math.round(parent.height * 0.11)
+                : Math.round((parent.height - height) / 2)
+            spacing: Math.round(clock.daySize * 0.30)
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                // Qt puts the letter spacing after the last glyph too, so a
+                // centred tracked line reads half a space too far left.
+                anchors.horizontalCenterOffset: Math.round(font.letterSpacing / 2)
+                text: clock.dayText
+                color: "#efeaff"
+                style: Text.Outline
+                styleColor: Qt.rgba(0, 0, 0, 0.55)
+                font.pixelSize: clock.daySize
+                font.weight: Font.DemiBold
+                font.letterSpacing: clock.daySize * 0.35
+            }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.horizontalCenterOffset: Math.round(font.letterSpacing / 2)
+                text: clock.dateText
+                color: "#efeaff"
+                opacity: 0.86
+                style: Text.Outline
+                styleColor: Qt.rgba(0, 0, 0, 0.5)
+                font.pixelSize: clock.dateSize
+                font.weight: Font.Medium
+                font.letterSpacing: clock.dateSize * 0.34
+            }
+
+            // The one NX flourish: violet into cyan, fading out at both ends so
+            // it is a hairline and not a rule (DESIGN §1 — no solid dividers).
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: Math.round(clock.daySize * 5.2)
+                height: 1
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.00; color: Qt.rgba(0.467, 0.0, 1.0, 0.0) }
+                    GradientStop { position: 0.30; color: Qt.rgba(0.467, 0.0, 1.0, 0.55) }
+                    GradientStop { position: 0.72; color: Qt.rgba(0.0, 0.898, 1.0, 0.42) }
+                    GradientStop { position: 1.00; color: Qt.rgba(0.0, 0.898, 1.0, 0.0) }
+                }
+            }
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.horizontalCenterOffset: Math.round(font.letterSpacing / 2)
+                text: clock.timeText
+                color: "#efeaff"
+                style: Text.Outline
+                styleColor: Qt.rgba(0, 0, 0, 0.5)
+                font.pixelSize: clock.timeSize
+                font.weight: Font.Normal
+                font.letterSpacing: clock.timeSize * 0.22
+            }
         }
     }
 }

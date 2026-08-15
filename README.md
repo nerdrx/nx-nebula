@@ -35,8 +35,15 @@ transform and opacity only, fully paused whenever the desktop isn't visible.
   slot.
 - **Aspect-mismatch strategies** (the ultrawide problem): fit / fill /
   pan-scan modes; letterbox backdrop as nebula, blurred self-copy, or dim;
-  optional glass frame; and an ultrawide mode that packs 2–3 portrait images
-  side by side as a rotating card row instead of letterboxing one.
+  frame styles from a plain lit tile through a glowing tile to a rounded
+  glass card — the glow samples each photo's own dominant hue, so every
+  picture arrives with its own light; and an ultrawide mode that packs 2–3
+  portrait images side by side as a rotating card row instead of
+  letterboxing one.
+- **OLED care** — the clock and the photo row wander a slow few-pixel
+  Lissajous over minutes (whole pixels only, so nothing ever softens),
+  spreading the brightest static shapes across the panel. On by default,
+  invisible in practice.
 
 ## Install
 

@@ -35,6 +35,9 @@ Item {
     property Item plate: null
     property real cornerRadius: 18
 
+    /** Bloom colour; GalleryCard feeds it the photo's own dominant hue. */
+    property color tint: "#7700ff"
+
     // A solid violet card-shape, blurred outward. Everything inside the
     // card's own outline is hidden behind the picture; only the halo escapes.
     Item {
@@ -46,7 +49,7 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: glass.cornerRadius
-            color: "#7700ff"
+            color: glass.tint
         }
     }
 

@@ -59,8 +59,11 @@ Kirigami.FormLayout {
     property int cfg_Backdrop: 0
     property int cfg_BackdropDefault: 0
 
-    property alias cfg_GlassFrame: glassFrame.checked
-    property bool cfg_GlassFrameDefault: true
+    property int cfg_FrameStyle: 1
+    property int cfg_FrameStyleDefault: 1
+
+    property alias cfg_BurnInGuard: burnInGuard.checked
+    property bool cfg_BurnInGuardDefault: true
 
     property alias cfg_UltrawideGallery: ultrawide.checked
     property bool cfg_UltrawideGalleryDefault: true
@@ -163,6 +166,12 @@ Kirigami.FormLayout {
             "Stars brighten and twinkle a little harder late at night and ease "
             + "off in the daytime. A few percent either way — the sky keeps its "
             + "character.")
+    }
+
+    QQC2.CheckBox {
+        id: burnInGuard
+        Kirigami.FormData.label: i18nd(root.dom, "Panel:")
+        text: i18nd(root.dom, "OLED care — static things wander a few pixels")
     }
 
     // --------------------------------------------------------------- gallery
@@ -271,11 +280,18 @@ Kirigami.FormLayout {
         onActivated: root.cfg_Backdrop = currentIndex
     }
 
-    QQC2.CheckBox {
-        id: glassFrame
+    QQC2.ComboBox {
         Kirigami.FormData.label: i18nd(root.dom, "Frame:")
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 16
         enabled: root.fitOn
-        text: i18nd(root.dom, "Glass card with a lit edge")
+        textRole: "label"
+        model: [
+            { label: i18nd(root.dom, "Plain lit tile") },
+            { label: i18nd(root.dom, "Tile with a glow — tinted to each photo") },
+            { label: i18nd(root.dom, "Rounded glass card") }
+        ]
+        currentIndex: root.cfg_FrameStyle
+        onActivated: root.cfg_FrameStyle = currentIndex
     }
 
     QQC2.CheckBox {

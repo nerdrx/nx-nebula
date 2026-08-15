@@ -41,6 +41,10 @@
       <label>An aurora on the deepest nights, once or twice an hour</label>
       <default>true</default>
     </entry>
+    <entry name="BurnInGuard" type="bool">
+      <label>Wander static elements a few pixels to spare OLED panels</label>
+      <default>true</default>
+    </entry>
 
     <!-- what sits on top of it -->
     <entry name="Mode" type="int">
@@ -69,9 +73,9 @@
       <label>Fills the empty bars in fit mode: 0 = nebula, 1 = blurred copy, 2 = dim</label>
       <default>0</default>
     </entry>
-    <entry name="GlassFrame" type="bool">
-      <label>Give fitted photos the NX glass card treatment</label>
-      <default>true</default>
+    <entry name="FrameStyle" type="int">
+      <label>0 = plain lit tile, 1 = tile with a glow, 2 = rounded glass card</label>
+      <default>1</default>
     </entry>
     <entry name="UltrawideGallery" type="bool">
       <label>On very wide screens, show two or three photos side by side</label>

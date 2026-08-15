@@ -25,11 +25,14 @@ Item {
     property string folder: ""
     property int fitMode: 0
     property int backdrop: 0
-    property bool glassFrame: true
+    /** 0 = plain lit tile, 1 = tile with a glow, 2 = rounded glass card. */
+    property int frameStyle: 1
     property bool ultrawide: true
     property int interval: 300
     property bool shuffle: true
     property bool live: true
+    /** OLED care: wander the card row a few pixels over minutes. */
+    property bool burnInGuard: true
 
     /** True when the photos hide the nebula completely; it can stop drawing. */
     readonly property bool covered: cardsReady
@@ -253,18 +256,49 @@ Item {
     // --- the photos -------------------------------------------------------
 
     Row {
+        id: cardRow
+        objectName: "cardRow"
         anchors.centerIn: parent
         spacing: gallery.gap
 
+        // OLED care. A fitted photo row is a bright static shape on a dark
+        // field — worst case for burn-in — so the whole row wanders a
+        // Lissajous of a few pixels over minutes. Rounded to whole pixels:
+        // the drift must never soften the pictures, only move them.
+        property real wx: 0
+        property real wy: 0
+        transform: Translate {
+            x: Math.round(cardRow.wx)
+            y: Math.round(cardRow.wy)
+        }
+
+        SequentialAnimation {
+            running: true
+            paused: !(gallery.live && gallery.burnInGuard && gallery.framed)
+            loops: Animation.Infinite
+            NumberAnimation { target: cardRow; property: "wx"; from: 0; to: 6; duration: 65000; easing.type: Easing.InOutSine }
+            NumberAnimation { target: cardRow; property: "wx"; from: 6; to: -6; duration: 130000; easing.type: Easing.InOutSine }
+            NumberAnimation { target: cardRow; property: "wx"; from: -6; to: 0; duration: 65000; easing.type: Easing.InOutSine }
+        }
+        SequentialAnimation {
+            running: true
+            paused: !(gallery.live && gallery.burnInGuard && gallery.framed)
+            loops: Animation.Infinite
+            NumberAnimation { target: cardRow; property: "wy"; from: 0; to: -4; duration: 82000; easing.type: Easing.InOutSine }
+            NumberAnimation { target: cardRow; property: "wy"; from: -4; to: 4; duration: 164000; easing.type: Easing.InOutSine }
+            NumberAnimation { target: cardRow; property: "wy"; from: 4; to: 0; duration: 82000; easing.type: Easing.InOutSine }
+        }
+
         GalleryCard {
             id: card0
+            cardIndex: 0
             visible: true
             width: gallery.framed ? gallery.cardH * aspect : gallery.width
             height: gallery.framed ? gallery.cardH : gallery.height
             fitMode: gallery.fitMode
-            // A full-bleed photo has no edges to light and no corners to
-            // round; the frame belongs to cards floating on the nebula.
-            glass: gallery.glassFrame && gallery.framed
+            // A full-bleed photo has no edges to light and nothing behind
+            // it to glow; the frame belongs to cards floating on the nebula.
+            frameStyle: gallery.framed ? gallery.frameStyle : 0
             frameRadius: gallery.frameRadius
             live: gallery.live
             onSourceFailed: gallery.skipFailed(0)
@@ -272,11 +306,12 @@ Item {
 
         GalleryCard {
             id: card1
+            cardIndex: 1
             visible: gallery.activeSlots > 1
             width: gallery.cardH * aspect
             height: gallery.cardH
             fitMode: gallery.fitMode
-            glass: gallery.glassFrame && gallery.framed
+            frameStyle: gallery.framed ? gallery.frameStyle : 0
             frameRadius: gallery.frameRadius
             live: gallery.live
             onSourceFailed: gallery.skipFailed(1)
@@ -284,11 +319,12 @@ Item {
 
         GalleryCard {
             id: card2
+            cardIndex: 2
             visible: gallery.activeSlots > 2
             width: gallery.cardH * aspect
             height: gallery.cardH
             fitMode: gallery.fitMode
-            glass: gallery.glassFrame && gallery.framed
+            frameStyle: gallery.framed ? gallery.frameStyle : 0
             frameRadius: gallery.frameRadius
             live: gallery.live
             onSourceFailed: gallery.skipFailed(2)

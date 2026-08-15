@@ -68,10 +68,11 @@ WallpaperItem {
         folder: root.configuration.GalleryFolder
         fitMode: root.configuration.FitMode
         backdrop: root.configuration.Backdrop
-        glassFrame: root.configuration.GlassFrame
+        frameStyle: root.configuration.FrameStyle
         ultrawide: root.configuration.UltrawideGallery
         interval: Math.max(5, root.configuration.Interval)
         shuffle: root.configuration.Shuffle
+        burnInGuard: root.configuration.BurnInGuard
     }
 
     ClockOverlay {
@@ -82,5 +83,8 @@ WallpaperItem {
         position: root.configuration.ClockPosition
         timeFormat: root.configuration.TimeFormat
         overPhotos: root.galleryMode
+        // The burn-in wander is motion, so it obeys `live` (and with it
+        // reduced motion), unlike the clock's once-a-minute text tick.
+        drift: root.live && root.configuration.BurnInGuard
     }
 }

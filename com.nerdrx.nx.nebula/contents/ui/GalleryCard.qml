@@ -19,6 +19,7 @@
 
 pragma ComponentBehavior: Bound
 
+import QtCore
 import QtQuick
 
 Item {
@@ -30,8 +31,9 @@ Item {
     /** 0 = fit (never crop), 1 = fill (crop), 2 = pan and scan. */
     property int fitMode: 0
 
-    /** Ask for the glass card treatment; see `glassActive` for what happened. */
-    property bool glass: true
+    /** 0 = plain lit tile, 1 = tile with a glow behind it, 2 = rounded
+        glass card. See `glassActive` for whether 2 actually happened. */
+    property int frameStyle: 1
 
     /** Motion gate, shared with the rest of the wallpaper. */
     property bool live: true
@@ -56,11 +58,29 @@ Item {
         Two ways it can fail, and both must fall back to the plain plate
         rather than to a blank card: QtQuick.Effects missing (Loader.Error),
         or a session running the software scene graph, where layer.enabled
-        renders nothing at all and the picture would simply vanish.
+        renders nothing at all and the picture would simply vanish. The
+        square-tile bloom degrades the same way — the halo just never shows.
     */
-    readonly property bool glassPossible: card.glass
-        && GraphicsInfo.api !== GraphicsInfo.Software
-    readonly property bool glassActive: card.glassPossible && glassLoader.status === Loader.Ready
+    readonly property bool effectsPossible: GraphicsInfo.api !== GraphicsInfo.Software
+    readonly property bool glassActive: card.frameStyle === 2 && card.effectsPossible
+        && glassLoader.status === Loader.Ready
+
+    /*
+        The glow behind the card, tinted to the photograph itself.
+
+        Sampled once per picture through an 8x8 Canvas — a one-shot at
+        rotation time, never per frame. Only the hue is taken from the photo;
+        saturation and lightness are pinned so the halo always glows like the
+        brand bloom instead of going muddy on a dark image. A picture with no
+        colour worth trusting (or any sampling failure at all) falls back to
+        the NX violet.
+    */
+    property color glowColor: "#7700ff"
+
+    Behavior on glowColor {
+        // Ride along with the 800ms crossfade.
+        ColorAnimation { duration: 800; easing.type: Easing.InOutQuad }
+    }
 
     // Which of the two slots is currently on top.
     property bool useA: true
@@ -79,6 +99,49 @@ Item {
 
     function promote(img: Image): void {
         card.useA = (img === imgA);
+    }
+
+    /** Which slot of the gallery row this is; only keeps the sample files
+        of side-by-side cards from fighting over one name. */
+    property int cardIndex: 0
+
+    // Sampling waits out the 800ms crossfade: a grab taken mid-fade sees
+    // the picture at a fraction of its opacity and reads too dark.
+    onUseAChanged: sampleDelay.restart()
+    onFrameStyleChanged: sampleDelay.restart()
+
+    Timer {
+        id: sampleDelay
+        interval: 900
+        onTriggered: card.requestGlowSample()
+    }
+
+    /*
+        Getting pixels out of a photo in pure QML is a maze: Canvas cannot
+        draw an Image *item* (Qt 6 dropped that), cannot resolve the
+        itemgrabber: URL a grab result carries, and loadImage on the photo's
+        own URL would decode the entire file a second time. What does work:
+        grab the already-decoded item at 8x8, save that postage stamp to the
+        cache directory, and let the Canvas load those hundred bytes back.
+    */
+    readonly property string samplePath:
+        StandardPaths.writableLocation(StandardPaths.CacheLocation)
+            .toString().replace("file://", "")
+        + "/nx-nebula-glow-" + card.cardIndex + ".png"
+
+    function requestGlowSample(): void {
+        if (card.frameStyle < 1 || card.front.status !== Image.Ready) {
+            return;
+        }
+        try {
+            card.front.grabToImage(result => {
+                if (result.saveToFile(card.samplePath)) {
+                    sampler.loadImage("file://" + card.samplePath);
+                }
+            }, Qt.size(sampler.width, sampler.height));
+        } catch (err) {
+            card.glowColor = "#7700ff";
+        }
     }
 
     onImageSourceChanged: {
@@ -188,6 +251,82 @@ Item {
         }
     }
 
+    Canvas {
+        id: sampler
+
+        width: 8
+        height: 8
+        visible: false
+        renderStrategy: Canvas.Immediate
+        renderTarget: Canvas.Image
+        onImageLoaded: sampler.requestPaint()
+        onPaint: {
+            const grabbed = "file://" + card.samplePath;
+            if (!sampler.isImageLoaded(grabbed)) {
+                return;
+            }
+            try {
+                const ctx = sampler.getContext("2d");
+                ctx.clearRect(0, 0, sampler.width, sampler.height);
+                ctx.drawImage(grabbed, 0, 0, sampler.width, sampler.height);
+                const d = ctx.getImageData(0, 0, sampler.width, sampler.height).data;
+
+                // Weighted circular mean of the hue; the weight is chroma
+                // times mid-lightness, so greys and blown highlights say
+                // nothing and one saturated subject decides.
+                let xs = 0;
+                let ys = 0;
+                let total = 0;
+                for (let i = 0; i < d.length; i += 4) {
+                    const r = d[i] / 255;
+                    const g = d[i + 1] / 255;
+                    const b = d[i + 2] / 255;
+                    const hi = Math.max(r, g, b);
+                    const lo = Math.min(r, g, b);
+                    const c = hi - lo;
+                    if (c < 0.06) {
+                        continue;
+                    }
+                    let h;
+                    if (hi === r) {
+                        h = ((g - b) / c + 6) % 6;
+                    } else if (hi === g) {
+                        h = (b - r) / c + 2;
+                    } else {
+                        h = (r - g) / c + 4;
+                    }
+                    h *= Math.PI / 3;
+                    const weight = c * (1 - Math.abs(hi + lo - 1));
+                    xs += weight * Math.cos(h);
+                    ys += weight * Math.sin(h);
+                    total += weight;
+                }
+                if (total > 1.5) {
+                    let hue = Math.atan2(ys, xs) / (2 * Math.PI);
+                    if (hue < 0) {
+                        hue += 1;
+                    }
+                    card.glowColor = Qt.hsla(hue, 0.85, 0.55, 1);
+                } else {
+                    card.glowColor = "#7700ff";
+                }
+            } catch (err) {
+                card.glowColor = "#7700ff";
+            }
+            sampler.unloadImage(grabbed);
+        }
+    }
+
+    // The halo behind a square tile. Declared before the plate so the glow
+    // stays underneath; the rounded style gets its bloom from GlassSurface
+    // instead.
+    Loader {
+        anchors.fill: parent
+        active: card.frameStyle === 1 && card.effectsPossible
+        source: "BloomHalo.qml"
+        onLoaded: item.tint = Qt.binding(() => card.glowColor)
+    }
+
     // The plate is the whole card: lit edge plus picture. When the glass
     // treatment is on it stops painting itself and becomes a texture for
     // GlassSurface to round off and drop a shadow under.
@@ -225,11 +364,12 @@ Item {
     Loader {
         id: glassLoader
         anchors.fill: parent
-        active: card.glassPossible
+        active: card.frameStyle === 2 && card.effectsPossible
         source: "GlassSurface.qml"
         onLoaded: {
             item.plate = plate;
             item.cornerRadius = Qt.binding(() => card.frameRadius);
+            item.tint = Qt.binding(() => card.glowColor);
         }
     }
 }
