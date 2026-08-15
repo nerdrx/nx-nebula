@@ -1,0 +1,77 @@
+{
+  "blobs": [
+    {
+      "name": "violet",
+      "file": "blob-violet.png",
+      "pixels": 2200,
+      "relX": 0.19,
+      "relY": 0.13,
+      "rotation": 28.0,
+      "spanUnits": 3.51,
+      "opacity": 0.18844
+    },
+    {
+      "name": "cyan",
+      "file": "blob-cyan.png",
+      "pixels": 1800,
+      "relX": 0.84,
+      "relY": 0.87,
+      "rotation": -38.0,
+      "spanUnits": 2.73,
+      "opacity": 0.052
+    },
+    {
+      "name": "magenta",
+      "file": "blob-magenta.png",
+      "pixels": 1600,
+      "relX": 0.55,
+      "relY": 0.68,
+      "rotation": -68.0,
+      "spanUnits": 2.418,
+      "opacity": 0.038
+    }
+  ],
+  "stars": [
+    {
+      "file": "stars-far.png",
+      "count": 700,
+      "opacity": 0.85,
+      "overscan": 1.05
+    },
+    {
+      "file": "stars-near.png",
+      "count": 160,
+      "opacity": 1.0,
+      "overscan": 1.05
+    }
+  ],
+  "twinkle": [
+    {
+      "file": "stars-twinkle-a.png",
+      "count": 60,
+      "opacity": 0.78,
+      "overscan": 1.05,
+      "period": 4300,
+      "direction": 1
+    },
+    {
+      "file": "stars-twinkle-b.png",
+      "count": 55,
+      "opacity": 0.78,
+      "overscan": 1.05,
+      "period": 6700,
+      "direction": -1
+    },
+    {
+      "file": "stars-twinkle-c.png",
+      "count": 45,
+      "opacity": 0.78,
+      "overscan": 1.05,
+      "period": 8900,
+      "direction": 1
+    }
+  ],
+  "starCount": 1020,
+  "referenceStarCount": 900,
+  "twinkleSwing": 0.22
+}

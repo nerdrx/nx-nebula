@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    SPDX-FileCopyrightText: 2026 nerdrx
+
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+    Enumerations are stored as plain ints (the pattern org.kde.image uses for
+    FillMode) rather than kcfg <choices>: ints round-trip through
+    KConfigPropertyMap without surprises and cannot be broken by a locale.
+-->
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0
+      http://www.kde.org/standards/kcfg/1.0/kcfg.xsd" >
+  <kcfgfile name=""/>
+
+  <group name="General">
+
+    <!-- the living background -->
+    <entry name="Animate" type="bool">
+      <label>Drift the nebula</label>
+      <default>true</default>
+    </entry>
+    <entry name="Speed" type="int">
+      <label>Drift speed as a percentage, 25 to 300</label>
+      <default>100</default>
+    </entry>
+    <entry name="Twinkle" type="bool">
+      <label>Let a few stars breathe</label>
+      <default>true</default>
+    </entry>
+
+    <!-- what sits on top of it -->
+    <entry name="Mode" type="int">
+      <label>0 = nebula only, 1 = nebula plus photo gallery</label>
+      <default>0</default>
+    </entry>
+    <entry name="GalleryFolder" type="String">
+      <label>Folder the gallery reads images from</label>
+      <default></default>
+    </entry>
+    <entry name="Interval" type="int">
+      <label>Seconds an image stays on screen</label>
+      <default>300</default>
+    </entry>
+    <entry name="Shuffle" type="bool">
+      <label>Play the folder in random order</label>
+      <default>true</default>
+    </entry>
+
+    <!-- how a photo meets a screen of a different shape -->
+    <entry name="FitMode" type="int">
+      <label>0 = fit (never crop), 1 = fill (crop), 2 = pan and scan</label>
+      <default>0</default>
+    </entry>
+    <entry name="Backdrop" type="int">
+      <label>Fills the empty bars in fit mode: 0 = nebula, 1 = blurred copy, 2 = dim</label>
+      <default>0</default>
+    </entry>
+    <entry name="GlassFrame" type="bool">
+      <label>Give fitted photos the NX glass card treatment</label>
+      <default>true</default>
+    </entry>
+    <entry name="UltrawideGallery" type="bool">
+      <label>On very wide screens, show two or three photos side by side</label>
+      <default>true</default>
+    </entry>
+
+    <!-- clock -->
+    <entry name="ShowClock" type="bool">
+      <label>Show the day, date and time</label>
+      <default>true</default>
+    </entry>
+    <entry name="ClockPosition" type="int">
+      <label>0 = centre of the screen, 1 = top centre</label>
+      <default>0</default>
+    </entry>
+
+  </group>
+</kcfg>

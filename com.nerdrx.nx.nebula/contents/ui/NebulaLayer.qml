@@ -1,0 +1,332 @@
+/*
+    SPDX-FileCopyrightText: 2026 nerdrx
+
+    SPDX-License-Identifier: GPL-3.0-or-later
+
+    DESIGN.md §3, "The living background", as a Plasma wallpaper layer.
+
+    Everything here is a pre-rendered sprite from tools/gen_nebula_layers.py.
+    The only things that change per frame are transform properties, so the
+    whole layer is a handful of textured quads and the GPU never re-rasterises
+    anything. No ShaderEffect, no Canvas, no timers.
+
+    Stacking order, bottom to top:
+
+        field      Rectangle gradient  #0a0714 -> #12091f
+        blobs      three drifting, breathing nebula bodies
+        stars      two sparse layers, the near one drifting slightly faster
+        vignette   edges darker than the centre
+        grain      one bit of tiled dither, because Qt Quick does not dither
+                   its own gradients and a near-black ramp bands without it
+*/
+
+pragma ComponentBehavior: Bound
+
+import QtQuick
+
+Item {
+    id: nebula
+
+    /** Master motion gate. False freezes every animation in place. */
+    property bool animating: true
+
+    /**
+        Drift speed multiplier, 0.25 .. 3.0.
+
+        1.0 is tuned so that watching the wall for half a minute tells you it
+        is alive. DESIGN §3 asks for 60–110s periods, but that figure was set
+        for a backdrop behind an app window, where the eye is busy elsewhere;
+        on a bare desktop the same numbers read as a still image. 0.25 puts
+        the periods back in the DESIGN range for anyone who wants the original
+        subliminal drift.
+    */
+    property real speed: 1.0
+
+    /** Slow opacity breathing on a sparse subset of the stars. */
+    property bool twinkle: true
+
+    /** True once every sprite has settled, one way or the other. */
+    readonly property bool ready: [
+        violet, cyan, magenta, starsFar, starsNear,
+        twinkleA, twinkleB, twinkleC, vignette, grain
+    ].every(layer => layer.status === Image.Ready || layer.status === Image.Error)
+
+    // Blob sizes and drift amplitudes are expressed in "scale units" of
+    // sqrt(w*h), exactly like tools/gen_wallpaper.py, so a 32:9 monitor gets
+    // the same composition rather than a stretched or cropped one.
+    readonly property real unit: Math.sqrt(Math.max(1, width) * Math.max(1, height))
+
+    /*
+        One nebula body.
+
+        The sprite is baked axis-aligned in its own local frame; `spin` turns
+        it into place, `relX`/`relY` put its centre in the frame, `spanUnits`
+        and `blobOpacity` come straight out of the generator and must match
+        contents/images/layers.json.
+
+        Drift is a Translate, not a change of x/y, so it never touches
+        geometry. The three-segment sequence starts and ends at zero offset,
+        which means a frozen wallpaper sits exactly on the static composition.
+    */
+    component Blob: Image {
+        id: blob
+
+        property real relX: 0.5
+        property real relY: 0.5
+        property real spanUnits: 1.0
+        property real spin: 0
+        property real blobOpacity: 0.1
+
+        property real amplitudeX: 0.03
+        property real amplitudeY: 0.02
+        property int periodX: 48000
+        property int periodY: 58000
+        property int periodBreathe: 57000
+        property real breatheAmount: 0.035
+        /** -1 makes this blob travel the opposite way round its ellipse. */
+        property real direction: 1
+
+        // Animated by the sequences below; kept separate from the bindings
+        // above so an animation never fights a binding.
+        property real breathe: 0
+
+        readonly property real ax: direction * amplitudeX * nebula.unit
+        readonly property real ay: direction * amplitudeY * nebula.unit
+        readonly property int qx: Math.max(16, Math.round(periodX / 4 / nebula.speed))
+        readonly property int qy: Math.max(16, Math.round(periodY / 4 / nebula.speed))
+        readonly property int qb: Math.max(16, Math.round(periodBreathe / 4 / nebula.speed))
+
+        width: nebula.unit * spanUnits
+        height: width
+        x: nebula.width * relX - width / 2
+        y: nebula.height * relY - height / 2
+        rotation: spin
+        scale: 1 + breathe
+        opacity: blobOpacity
+
+        fillMode: Image.Stretch
+        smooth: true
+        mipmap: false
+        cache: false
+        asynchronous: true
+
+        transform: Translate { id: drift }
+
+        SequentialAnimation {
+            running: true
+            paused: !nebula.animating
+            loops: Animation.Infinite
+            NumberAnimation { target: drift; property: "x"; from: 0; to: blob.ax; duration: blob.qx; easing.type: Easing.InOutSine }
+            NumberAnimation { target: drift; property: "x"; from: blob.ax; to: -blob.ax; duration: blob.qx * 2; easing.type: Easing.InOutSine }
+            NumberAnimation { target: drift; property: "x"; from: -blob.ax; to: 0; duration: blob.qx; easing.type: Easing.InOutSine }
+        }
+
+        SequentialAnimation {
+            running: true
+            paused: !nebula.animating
+            loops: Animation.Infinite
+            NumberAnimation { target: drift; property: "y"; from: 0; to: blob.ay; duration: blob.qy; easing.type: Easing.InOutSine }
+            NumberAnimation { target: drift; property: "y"; from: blob.ay; to: -blob.ay; duration: blob.qy * 2; easing.type: Easing.InOutSine }
+            NumberAnimation { target: drift; property: "y"; from: -blob.ay; to: 0; duration: blob.qy; easing.type: Easing.InOutSine }
+        }
+
+        SequentialAnimation {
+            running: true
+            paused: !nebula.animating
+            loops: Animation.Infinite
+            NumberAnimation { target: blob; property: "breathe"; from: 0; to: blob.breatheAmount; duration: blob.qb; easing.type: Easing.InOutSine }
+            NumberAnimation { target: blob; property: "breathe"; from: blob.breatheAmount; to: -blob.breatheAmount; duration: blob.qb * 2; easing.type: Easing.InOutSine }
+            NumberAnimation { target: blob; property: "breathe"; from: -blob.breatheAmount; to: 0; duration: blob.qb; easing.type: Easing.InOutSine }
+        }
+    }
+
+    /*
+        One sparse sheet of twinkling stars.
+
+        `base` is the resting opacity the generator's composite assumes, and
+        the swing is symmetric around it, so a frozen or twinkle-off wallpaper
+        shows exactly the picture in contents/screenshot.png. Nothing here
+        moves — the drift belongs to the two layers above — and nothing but
+        opacity changes.
+    */
+    component TwinkleLayer: Image {
+        id: tw
+
+        property int period: 6000
+        property real base: 0.78
+        property real swing: 0.22
+        /** -1 starts the cycle dim instead of bright. */
+        property real direction: 1
+
+        property real wobble: 0
+        readonly property real reach: direction * swing
+        readonly property int q: Math.max(16, Math.round(period / 4 / nebula.speed))
+
+        anchors.centerIn: parent
+        width: parent.width * 1.05
+        height: parent.height * 1.05
+        fillMode: Image.PreserveAspectCrop
+        clip: true
+        smooth: true
+        asynchronous: true
+        visible: nebula.twinkle
+        opacity: base + wobble
+
+        SequentialAnimation {
+            running: nebula.twinkle
+            paused: nebula.twinkle && !nebula.animating
+            loops: Animation.Infinite
+            onStopped: tw.wobble = 0
+            NumberAnimation { target: tw; property: "wobble"; from: 0; to: tw.reach; duration: tw.q; easing.type: Easing.InOutSine }
+            NumberAnimation { target: tw; property: "wobble"; from: tw.reach; to: -tw.reach; duration: tw.q * 2; easing.type: Easing.InOutSine }
+            NumberAnimation { target: tw; property: "wobble"; from: -tw.reach; to: 0; duration: tw.q; easing.type: Easing.InOutSine }
+        }
+    }
+
+    // ---------------------------------------------------------------- field
+
+    Rectangle {
+        anchors.fill: parent
+        // Four intermediate stops trace gen_wallpaper's t^1.15 ease, so the
+        // darkest band hugs the top edge instead of marching down linearly.
+        gradient: Gradient {
+            GradientStop { position: 0.00; color: "#0a0714" }
+            GradientStop { position: 0.25; color: "#0c0716" }
+            GradientStop { position: 0.50; color: "#0e0819" }
+            GradientStop { position: 0.75; color: "#10081c" }
+            GradientStop { position: 1.00; color: "#12091f" }
+        }
+    }
+
+    // ---------------------------------------------------------------- blobs
+
+    // Violet leads from the upper left: it is the light source the whole
+    // design language is lit by (DESIGN §1, §11).
+    Blob {
+        id: violet
+        source: "../images/blob-violet.png"
+        relX: 0.19; relY: 0.13
+        spanUnits: 3.5100; spin: 28.0; blobOpacity: 0.18844
+        amplitudeX: 0.030; amplitudeY: 0.022
+        periodX: 48000; periodY: 58000
+        periodBreathe: 57000; breatheAmount: 0.035
+        direction: 1
+    }
+
+    // Cyan anchors the lower right and stays subordinate — light inside the
+    // material, never a competing surface colour.
+    Blob {
+        id: cyan
+        source: "../images/blob-cyan.png"
+        relX: 0.84; relY: 0.87
+        spanUnits: 2.7300; spin: -38.0; blobOpacity: 0.05200
+        amplitudeX: 0.038; amplitudeY: 0.028
+        periodX: 40000; periodY: 52000
+        periodBreathe: 47000; breatheAmount: 0.030
+        direction: -1
+    }
+
+    // A nearly subliminal magenta bloom holding the middle together.
+    Blob {
+        id: magenta
+        source: "../images/blob-magenta.png"
+        relX: 0.55; relY: 0.68
+        spanUnits: 2.4180; spin: -68.0; blobOpacity: 0.03800
+        amplitudeX: 0.032; amplitudeY: 0.040
+        periodX: 55000; periodY: 36000
+        periodBreathe: 53000; breatheAmount: 0.040
+        direction: 1
+    }
+
+    // ---------------------------------------------------------------- stars
+
+    Item {
+        anchors.fill: parent
+        clip: true
+
+        Image {
+            id: starsFar
+            source: "../images/stars-far.png"
+            anchors.centerIn: parent
+            // 5% overscan gives the drift somewhere to go without ever
+            // exposing an edge.
+            width: parent.width * 1.05
+            height: parent.height * 1.05
+            fillMode: Image.PreserveAspectCrop
+            clip: true
+            smooth: true
+            asynchronous: true
+            opacity: 0.85
+            transform: Translate { id: farDrift }
+
+            SequentialAnimation {
+                running: true
+                paused: !nebula.animating
+                loops: Animation.Infinite
+                NumberAnimation { target: farDrift; property: "x"; from: 0; to: nebula.unit * 0.005; duration: Math.round(41000 / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: farDrift; property: "x"; from: nebula.unit * 0.005; to: -nebula.unit * 0.005; duration: Math.round(82000 / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: farDrift; property: "x"; from: -nebula.unit * 0.005; to: 0; duration: Math.round(41000 / nebula.speed); easing.type: Easing.InOutSine }
+            }
+        }
+
+        Image {
+            id: starsNear
+            source: "../images/stars-near.png"
+            anchors.centerIn: parent
+            width: parent.width * 1.05
+            height: parent.height * 1.05
+            fillMode: Image.PreserveAspectCrop
+            clip: true
+            smooth: true
+            asynchronous: true
+            transform: Translate { id: nearDrift }
+
+            // Twice the throw and a shorter period than the far layer: the
+            // only reason the two exist is that tiny parallax.
+            SequentialAnimation {
+                running: true
+                paused: !nebula.animating
+                loops: Animation.Infinite
+                NumberAnimation { target: nearDrift; property: "x"; from: 0; to: nebula.unit * 0.010; duration: Math.round(30000 / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: nearDrift; property: "x"; from: nebula.unit * 0.010; to: -nebula.unit * 0.010; duration: Math.round(60000 / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: nearDrift; property: "x"; from: -nebula.unit * 0.010; to: 0; duration: Math.round(30000 / nebula.speed); easing.type: Easing.InOutSine }
+            }
+        }
+
+        // Three sparse layers rather than one. A single layer can only fade
+        // as a unit, which reads as the whole sky pulsing; three of them on
+        // unrelated periods, the middle one counter-phased, read as
+        // individual stars breathing. Cost: three opacity interpolators, and
+        // opacity on a leaf Image is a uniform, not a repaint.
+        TwinkleLayer { id: twinkleA; source: "../images/stars-twinkle-a.png"; period: 4300; direction: 1 }
+        TwinkleLayer { id: twinkleB; source: "../images/stars-twinkle-b.png"; period: 6700; direction: -1 }
+        TwinkleLayer { id: twinkleC; source: "../images/stars-twinkle-c.png"; period: 8900; direction: 1 }
+    }
+
+    // ------------------------------------------------------- vignette, grain
+
+    Image {
+        id: vignette
+        source: "../images/vignette.png"
+        anchors.fill: parent
+        // Stretched rather than cropped: the falloff is authored in
+        // normalised frame coordinates, so stretching it *is* the correct
+        // transform and the edges stay dark at any aspect ratio.
+        fillMode: Image.Stretch
+        smooth: true
+        asynchronous: true
+    }
+
+    Image {
+        id: grain
+        source: "../images/grain.png"
+        anchors.fill: parent
+        fillMode: Image.Tile
+        horizontalAlignment: Image.AlignLeft
+        verticalAlignment: Image.AlignTop
+        // Nearest sampling: the tile must land one texel per pixel or it
+        // stops being a dither and starts being mush.
+        smooth: false
+        asynchronous: true
+    }
+}

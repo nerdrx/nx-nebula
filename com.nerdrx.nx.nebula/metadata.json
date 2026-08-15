@@ -1,0 +1,19 @@
+{
+    "KPackageStructure": "Plasma/Wallpaper",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "nerdrx"
+            }
+        ],
+        "Category": "",
+        "Description": "Living NX nebula, with an optional photo gallery and clock",
+        "Icon": "preferences-desktop-wallpaper",
+        "Id": "com.nerdrx.nx.nebula",
+        "License": "GPL-3.0-or-later",
+        "Name": "NX Nebula (Live)",
+        "Website": "https://github.com/nerdrx/nx-kde"
+    },
+    "Keywords": "",
+    "X-KDE-ParentApp": "org.kde.plasmashell"
+}
