@@ -37,6 +37,10 @@
       <label>Deeper nights, softer days: the sky follows the wall clock</label>
       <default>true</default>
     </entry>
+    <entry name="Aurora" type="bool">
+      <label>An aurora on the deepest nights, once or twice an hour</label>
+      <default>true</default>
+    </entry>
 
     <!-- what sits on top of it -->
     <entry name="Mode" type="int">

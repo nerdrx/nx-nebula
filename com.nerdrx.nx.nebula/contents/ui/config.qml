@@ -38,6 +38,9 @@ Kirigami.FormLayout {
     property alias cfg_DayNight: dayNight.checked
     property bool cfg_DayNightDefault: true
 
+    property alias cfg_Aurora: aurora.checked
+    property bool cfg_AuroraDefault: true
+
     property int cfg_Mode: 0
     property int cfg_ModeDefault: 0
 
@@ -126,7 +129,7 @@ Kirigami.FormLayout {
         // Meteors are motion, so they obey the master animation switch
         // exactly like the drift does.
         enabled: animate.checked
-        text: i18nd(root.dom, "A shooting star now and then")
+        text: i18nd(root.dom, "Shooting stars, and the odd slow satellite")
     }
 
     QQC2.Label {
@@ -143,6 +146,12 @@ Kirigami.FormLayout {
         id: dayNight
         Kirigami.FormData.label: i18nd(root.dom, "Sky:")
         text: i18nd(root.dom, "Deeper nights, softer days")
+    }
+
+    QQC2.CheckBox {
+        id: aurora
+        enabled: animate.checked
+        text: i18nd(root.dom, "An aurora on the deepest nights")
     }
 
     QQC2.Label {

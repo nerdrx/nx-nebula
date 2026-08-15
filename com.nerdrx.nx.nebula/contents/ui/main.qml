@@ -50,6 +50,7 @@ WallpaperItem {
         twinkle: root.configuration.Twinkle
         meteors: root.configuration.Meteors
         dayNight: root.configuration.DayNight
+        aurora: root.configuration.Aurora
 
         onReadyChanged: {
             if (nebula.ready) {

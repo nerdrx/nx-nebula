@@ -128,6 +128,15 @@ TWINKLE_SWING = 0.22
 VIGNETTE_W, VIGNETTE_H = 1600, 900
 GRAIN = 256
 
+# The aurora curtain: a rare deep-night event, not part of the resting
+# composition (and so absent from the composite and the screenshot). Sharp
+# lower edge in the accent cyan feathering upward into the brand violet --
+# the NX palette happens to be an aurora palette.
+AURORA_W, AURORA_H = 1600, 800
+AURORA_TOP = "#7700ff"
+AURORA_BOTTOM = "#00e5ff"
+AURORA_OPACITY = 0.14  # QML peak opacity; printed in the contract below
+
 SCREENSHOT = (640, 360)
 
 # The composition is authored around the four static blobs. Violet and
@@ -310,6 +319,74 @@ def _splat_rgba(alpha, premult, px, py, sigma, tint, amp) -> None:
     g = np.exp(-d2 / (2.0 * sigma * sigma)) * amp
     alpha[y0:y1, x0:x1] += g
     premult[y0:y1, x0:x1] += g[:, :, None] * tint.reshape(1, 1, 3)
+
+
+# --------------------------------------------------------------------------
+# aurora
+# --------------------------------------------------------------------------
+
+
+def build_aurora() -> tuple[Image.Image, dict]:
+    """The aurora curtain sprite.
+
+    Real aurora structure in miniature: vertical rays whose intensity is a
+    banded 1-D noise along the ribbon, hanging from a wavy lower border that
+    is sharp below and feathers far upward. Alpha is normalised to the full
+    8-bit range like every other sprite; QML restores the (very low) real
+    amplitude through item opacity.
+    """
+    rng = np.random.default_rng(SEED ^ 0xA07A)
+    w, h = AURORA_W, AURORA_H
+    x = ((np.arange(w, dtype=np.float32) + 0.5) / w).reshape(1, w)
+    y = ((np.arange(h, dtype=np.float32) + 0.5) / h).reshape(h, 1)
+
+    def snoise(components: int, fmin: float, fmax: float, power: float) -> np.ndarray:
+        """Smooth seeded 1-D noise along x, normalised to 0..1."""
+        v = np.zeros(w, dtype=np.float32)
+        for _ in range(components):
+            f = rng.uniform(fmin, fmax)
+            p = rng.uniform(0.0, 1.0)
+            v += (1.0 / f**power) * np.sin(2.0 * math.pi * (f * x[0] + p)).astype(
+                np.float32
+            )
+        v -= v.min()
+        return v / max(float(v.max()), 1e-6)
+
+    # Banded ray intensity; the exponent deepens the gaps between rays.
+    rays = snoise(10, 3.0, 30.0, 0.7) ** 1.9
+    # The ribbon dissolves before it reaches its own canvas ends.
+    rays *= smoothstep(x[0] / 0.14) * smoothstep((1.0 - x[0]) / 0.14)
+
+    # A wavy lower border around 74% height: sharp 3% falloff below it,
+    # a long 30% feather above it.
+    edge = (0.74 + 0.07 * (snoise(4, 1.0, 4.0, 1.0) * 2.0 - 1.0)).reshape(1, w)
+    above = np.clip(edge - y, 0.0, None)
+    below = np.clip(y - edge, 0.0, None)
+    v = np.where(y <= edge, np.exp(-above / 0.30), np.exp(-below / 0.03)).astype(
+        np.float32
+    )
+    v *= smoothstep(y[:, 0] / 0.10).reshape(h, 1)  # nothing touches the top...
+    v *= smoothstep((1.0 - y[:, 0]) / 0.06).reshape(h, 1)  # ...or the bottom
+
+    alpha = rays.reshape(1, w) * v
+    alpha /= max(float(alpha.max()), 1e-6)
+
+    # Cyan at the border, violet up the feather.
+    t = np.clip(above / 0.45, 0.0, 1.0)
+    bottom, top = hex_rgb(AURORA_BOTTOM), hex_rgb(AURORA_TOP)
+    rgb = bottom.reshape(1, 1, 3) + (top - bottom).reshape(1, 1, 3) * t[:, :, None]
+
+    out = np.empty((h, w, 4), dtype=np.uint8)
+    out[:, :, :3] = np.clip(np.rint(rgb * 255.0), 0, 255).astype(np.uint8)
+    out[:, :, 3] = np.clip(np.rint(alpha * 255.0), 0, 255).astype(np.uint8)
+
+    meta = {
+        "file": "aurora.png",
+        "width": w,
+        "height": h,
+        "opacity": AURORA_OPACITY,
+    }
+    return Image.fromarray(out, mode="RGBA"), meta
 
 
 # --------------------------------------------------------------------------
@@ -496,6 +573,15 @@ def build(root: str) -> None:
             f"{count} stars  {period / 1000:.1f}s dir={direction:+d}"
         )
 
+    sprite, entry = build_aurora()
+    size = save_png(sprite, os.path.join(root, IMAGES_DIR, entry["file"]))
+    total += size
+    meta["aurora"] = entry
+    print(
+        f"  {entry['file']:<20} {AURORA_W}x{AURORA_H}  {human(size):>9}  "
+        f"opacity={entry['opacity']:.2f} (event peak)"
+    )
+
     size = save_png(build_vignette(), os.path.join(root, IMAGES_DIR, "vignette.png"))
     total += size
     print(f"  {'vignette.png':<20} {VIGNETTE_W}x{VIGNETTE_H}  {human(size):>9}")
@@ -540,6 +626,8 @@ def check(root: str) -> int:
         ("vignette.png", (VIGNETTE_W, VIGNETTE_H)),
         ("grain.png", (GRAIN, GRAIN)),
     ]
+    if "aurora" in meta:
+        expected.append((meta["aurora"]["file"], (AURORA_W, AURORA_H)))
 
     for name, size in expected:
         path = os.path.join(root, IMAGES_DIR, name)

@@ -71,6 +71,12 @@
       "direction": 1
     }
   ],
+  "aurora": {
+    "file": "aurora.png",
+    "width": 1600,
+    "height": 800,
+    "opacity": 0.14
+  },
   "starCount": 1020,
   "referenceStarCount": 900,
   "twinkleSwing": 0.22

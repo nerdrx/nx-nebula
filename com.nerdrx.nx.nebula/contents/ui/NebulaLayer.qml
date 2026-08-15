@@ -51,6 +51,9 @@ Item {
     /** Let the wall clock tune the sky: deeper nights, softer days. */
     property bool dayNight: true
 
+    /** An aurora on the deepest nights, once or twice an hour. */
+    property bool aurora: true
+
     /*
         0 = full day, 1 = full night, refreshed once a minute.
 
@@ -372,6 +375,63 @@ Item {
         TwinkleLayer { id: twinkleC; source: "../images/stars-twinkle-c.png"; period: 8900; direction: 1 }
 
         /*
+            The aurora curtain, hidden until an event.
+
+            It hangs in front of the stars — aurora is atmosphere, stars are
+            not — and behind the meteors, which burn far below it. An event
+            is a slow arrival, a couple of minutes of gentle shimmering
+            drift, and a slow dissolve; between events the item is invisible
+            and costs nothing. Deep night only: the scheduler consults
+            skyFactor directly, so it follows the real clock even when the
+            day/night *look* is switched off.
+        */
+        Image {
+            id: auroraCurtain
+            source: "../images/aurora.png"
+            fillMode: Image.Stretch
+            smooth: true
+            asynchronous: true
+            opacity: 0
+            visible: nebula.aurora && opacity > 0
+            transform: Translate { id: auroraDrift }
+        }
+
+        ParallelAnimation {
+            id: auroraShow
+            paused: auroraShow.running && !nebula.animating
+
+            NumberAnimation {
+                id: auroraSlide
+                target: auroraDrift
+                property: "x"
+                easing.type: Easing.InOutSine
+            }
+            SequentialAnimation {
+                NumberAnimation { id: auroraIn; target: auroraCurtain; property: "opacity"; from: 0; easing.type: Easing.InOutSine }
+                NumberAnimation { id: auroraDim; target: auroraCurtain; property: "opacity"; easing.type: Easing.InOutSine }
+                NumberAnimation { id: auroraSwell; target: auroraCurtain; property: "opacity"; easing.type: Easing.InOutSine }
+                NumberAnimation { id: auroraOut; target: auroraCurtain; property: "opacity"; to: 0; easing.type: Easing.InOutSine }
+            }
+        }
+
+        // Once every 12 to 35 minutes the sky *considers* an aurora, and
+        // only deep night gets one. The re-roll happens whether or not the
+        // curtain rose, so a wallpaper left running all day cannot save up
+        // a burst of them for dusk.
+        Timer {
+            id: auroraClock
+            running: nebula.aurora && nebula.animating
+            repeat: true
+            interval: 720000 + Math.round(Math.random() * 1380000)
+            onTriggered: {
+                if (nebula.skyFactor(new Date()) >= 0.65) {
+                    nebula.auroraNow();
+                }
+                interval = 720000 + Math.round(Math.random() * 1380000);
+            }
+        }
+
+        /*
             One meteor, reused for every flight.
 
             The streak is a hairline Rectangle whose gradient runs tail to
@@ -429,9 +489,51 @@ Item {
             interval: 45000 + Math.round(Math.random() * 105000)
             onTriggered: {
                 nebula.meteorNow();
-                interval = nebula.showerRadiant(new Date()) >= 0
-                    ? 12000 + Math.round(Math.random() * 18000)
-                    : 45000 + Math.round(Math.random() * 105000);
+                interval = nebula.nextMeteorDelay(new Date());
+            }
+        }
+
+        /*
+            A satellite: the meteor's slow, faithful opposite.
+
+            A three-pixel dot that takes twenty-odd seconds to cross the sky
+            in a dead-straight line, brightening and dimming once mid-pass
+            the way a tumbling body catches the sun. It shares the meteors
+            switch — they are the same hobby.
+        */
+        Rectangle {
+            id: satellite
+            width: Math.max(2, Math.round(nebula.unit * 0.0016))
+            height: width
+            radius: width / 2
+            color: "#e8e4f8"
+            opacity: 0
+            visible: nebula.meteors && opacity > 0
+        }
+
+        ParallelAnimation {
+            id: satPass
+            paused: satPass.running && !nebula.animating
+
+            NumberAnimation { id: satX; target: satellite; property: "x"; easing.type: Easing.Linear }
+            NumberAnimation { id: satY; target: satellite; property: "y"; easing.type: Easing.Linear }
+            SequentialAnimation {
+                NumberAnimation { id: satIn; target: satellite; property: "opacity"; from: 0; to: 0.35; easing.type: Easing.InOutSine }
+                NumberAnimation { id: satFlare; target: satellite; property: "opacity"; to: 0.8; easing.type: Easing.InOutSine }
+                NumberAnimation { id: satFade; target: satellite; property: "opacity"; to: 0.35; easing.type: Easing.InOutSine }
+                NumberAnimation { id: satOut; target: satellite; property: "opacity"; to: 0; easing.type: Easing.InOutSine }
+            }
+        }
+
+        // Every 6 to 18 minutes, one quiet pass.
+        Timer {
+            id: satClock
+            running: nebula.meteors && nebula.animating
+            repeat: true
+            interval: 360000 + Math.round(Math.random() * 720000)
+            onTriggered: {
+                nebula.satelliteNow();
+                interval = 360000 + Math.round(Math.random() * 720000);
             }
         }
     }
@@ -499,6 +601,11 @@ Item {
         const sy = nebula.height * (0.06 + Math.random() * 0.42) - dy / 2;
         const life = 750 + Math.round(Math.random() * 500);
 
+        // No two alike: length and peak brightness vary per flight, faint
+        // short ones outnumbering the occasional long bright earthgrazer.
+        meteor.width = nebula.unit * (0.05 + Math.random() * 0.05);
+        flare.to = 0.65 + Math.random() * 0.35;
+
         meteor.rotation = angle;
         flightX.from = sx;
         flightX.to = sx + dx;
@@ -509,6 +616,72 @@ Item {
         flare.duration = Math.round(life * 0.18);
         burnout.duration = life - flare.duration;
         flight.restart();
+    }
+
+    /** How long until the next meteor. Pure in `when`, random in amplitude:
+        quiet nights wait minutes, shower peaks wait seconds — and for the
+        first quarter hour of the new year the sky simply celebrates. */
+    function nextMeteorDelay(when: date): int {
+        if (when.getMonth() === 0 && when.getDate() === 1
+                && when.getHours() === 0 && when.getMinutes() < 15) {
+            return 2500 + Math.round(Math.random() * 2500);
+        }
+        return nebula.showerRadiant(when) >= 0
+            ? 12000 + Math.round(Math.random() * 18000)
+            : 45000 + Math.round(Math.random() * 105000);
+    }
+
+    /** Raise the aurora once, immediately. The deep-night scheduler's entry
+        point, public for the same reason meteorNow is. */
+    function auroraNow(): void {
+        // A broad veil across the upper sky, sized to the frame the way the
+        // sprite was authored: about 1.3 scale-units wide, half as tall.
+        const w = nebula.unit * (1.15 + Math.random() * 0.35);
+        const h = w * 0.5;
+        auroraCurtain.width = w;
+        auroraCurtain.height = h;
+        auroraCurtain.x = nebula.width * (0.30 + Math.random() * 0.40) - w / 2;
+        auroraCurtain.y = nebula.height * (0.16 + Math.random() * 0.14) - h / 2;
+        auroraCurtain.rotation = -8 + Math.random() * 16;
+
+        const life = 120000 + Math.round(Math.random() * 120000);
+        const peak = 0.09 + Math.random() * 0.06;   // sprite contract: <= 0.14ish
+
+        auroraSlide.from = 0;
+        auroraSlide.to = nebula.unit * (Math.random() < 0.5 ? 0.03 : -0.03);
+        auroraSlide.duration = life;
+
+        auroraIn.to = peak;
+        auroraIn.duration = Math.round(life * 0.15);
+        auroraDim.to = peak * 0.72;                 // one slow shimmer
+        auroraDim.duration = Math.round(life * 0.28);
+        auroraSwell.to = peak;
+        auroraSwell.duration = Math.round(life * 0.27);
+        auroraOut.duration = life - auroraIn.duration
+            - auroraDim.duration - auroraSwell.duration;
+        auroraShow.restart();
+    }
+
+    /** Fly one satellite pass, immediately. */
+    function satelliteNow(): void {
+        // Border to border on a shallow chord, either direction.
+        const leftToRight = Math.random() < 0.5;
+        const sy = nebula.height * (0.10 + Math.random() * 0.55);
+        const ey = sy + nebula.height * (Math.random() * 0.30 - 0.15);
+        const life = 16000 + Math.round(Math.random() * 12000);
+
+        satX.from = leftToRight ? -satellite.width : nebula.width;
+        satX.to = leftToRight ? nebula.width : -satellite.width;
+        satX.duration = life;
+        satY.from = sy;
+        satY.to = ey;
+        satY.duration = life;
+
+        satIn.duration = Math.round(life * 0.12);
+        satFlare.duration = Math.round(life * 0.30);
+        satFade.duration = Math.round(life * 0.30);
+        satOut.duration = life - satIn.duration - satFlare.duration - satFade.duration;
+        satPass.restart();
     }
 
     // ------------------------------------------------------- vignette, grain

@@ -22,7 +22,11 @@ transform and opacity only, fully paused whenever the desktop isn't visible.
 - **The sky knows the calendar** — on the peak nights of the real annual
   meteor showers (Perseids, Geminids, Quadrantids, …) shooting stars arrive
   every half minute, all along one shared radiant, the way a shower actually
-  looks.
+  looks. No two meteors are alike, and every few minutes a slow satellite
+  crosses the whole sky in a dead-straight line, flaring once mid-pass.
+- **Aurora** — on the deepest night hours, once or twice an hour, a violet
+  and cyan curtain rises over the stars, shimmers for a couple of minutes,
+  and dissolves. Pre-rendered like everything else; still no shaders.
 - **Clock overlay** — wide-tracked day name, date, and time, centered or
   top-centered; 12/24-hour follows the system locale, or force either.
 - **Folder gallery** — point it at a folder (JPEG/PNG/WebP/BMP/AVIF/JXL);
