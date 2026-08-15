@@ -75,10 +75,14 @@ Item {
         onTriggered: {
             clock.refresh();
             const now = new Date();
-            // Land on the next minute boundary; from then on this is a
-            // no-op that keeps the interval at a clean 60s.
+            // Aim the next tick at the coming minute boundary, every time.
+            // A tick that lands just *before* the boundary must chase it
+            // with a short interval, not settle for 60s: settling pins every
+            // future tick a moment before its boundary, and the clock then
+            // shows the outgoing minute for essentially the whole minute.
+            // Worst case here is one extra refresh 16ms after a tick.
             const remaining = 60000 - (now.getSeconds() * 1000 + now.getMilliseconds());
-            tick.interval = remaining < 250 ? 60000 : remaining;
+            tick.interval = Math.max(16, remaining);
         }
     }
 

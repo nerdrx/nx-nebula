@@ -78,7 +78,16 @@ Item {
     }
 
     onImageSourceChanged: {
-        if (String(imageSource).length === 0 || back.source == imageSource) {
+        if (String(imageSource).length === 0) {
+            return;
+        }
+        if (back.source == imageSource) {
+            // The hidden slot already holds this picture — a two-image
+            // folder lands here every other turn. Bring it forward rather
+            // than dropping the turn, or the rotation visibly stalls.
+            if (back.status === Image.Ready) {
+                card.promote(back);
+            }
             return;
         }
         card.generation += 1;
