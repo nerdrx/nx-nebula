@@ -29,6 +29,10 @@
       <label>Let a few stars breathe</label>
       <default>true</default>
     </entry>
+    <entry name="Meteors" type="bool">
+      <label>A shooting star every minute or two</label>
+      <default>true</default>
+    </entry>
 
     <!-- what sits on top of it -->
     <entry name="Mode" type="int">
@@ -73,6 +77,10 @@
     </entry>
     <entry name="ClockPosition" type="int">
       <label>0 = centre of the screen, 1 = top centre</label>
+      <default>0</default>
+    </entry>
+    <entry name="TimeFormat" type="int">
+      <label>0 = follow the locale, 1 = 12-hour, 2 = 24-hour</label>
       <default>0</default>
     </entry>
 

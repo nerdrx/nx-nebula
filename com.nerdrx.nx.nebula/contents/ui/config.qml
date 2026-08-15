@@ -32,6 +32,9 @@ Kirigami.FormLayout {
     property alias cfg_Twinkle: twinkle.checked
     property bool cfg_TwinkleDefault: true
 
+    property alias cfg_Meteors: meteors.checked
+    property bool cfg_MeteorsDefault: true
+
     property int cfg_Mode: 0
     property int cfg_ModeDefault: 0
 
@@ -61,6 +64,9 @@ Kirigami.FormLayout {
 
     property int cfg_ClockPosition: 0
     property int cfg_ClockPositionDefault: 0
+
+    property int cfg_TimeFormat: 0
+    property int cfg_TimeFormatDefault: 0
 
     readonly property string dom: "plasma_wallpaper_com.nerdrx.nx.nebula"
     readonly property bool galleryOn: cfg_Mode === 1
@@ -110,6 +116,14 @@ Kirigami.FormLayout {
         id: twinkle
         Kirigami.FormData.label: i18nd(root.dom, "Stars:")
         text: i18nd(root.dom, "Let a few of them breathe")
+    }
+
+    QQC2.CheckBox {
+        id: meteors
+        // Meteors are motion, so they obey the master animation switch
+        // exactly like the drift does.
+        enabled: animate.checked
+        text: i18nd(root.dom, "A shooting star now and then")
     }
 
     // --------------------------------------------------------------- gallery
@@ -266,5 +280,19 @@ Kirigami.FormLayout {
         ]
         currentIndex: root.cfg_ClockPosition
         onActivated: root.cfg_ClockPosition = currentIndex
+    }
+
+    QQC2.ComboBox {
+        Kirigami.FormData.label: i18nd(root.dom, "Time:")
+        Layout.preferredWidth: Kirigami.Units.gridUnit * 16
+        enabled: showClock.checked
+        textRole: "label"
+        model: [
+            { label: i18nd(root.dom, "Follow the system language") },
+            { label: i18nd(root.dom, "12-hour") },
+            { label: i18nd(root.dom, "24-hour") }
+        ]
+        currentIndex: root.cfg_TimeFormat
+        onActivated: root.cfg_TimeFormat = currentIndex
     }
 }

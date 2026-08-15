@@ -45,6 +45,9 @@ Item {
     /** Slow opacity breathing on a sparse subset of the stars. */
     property bool twinkle: true
 
+    /** A meteor every minute or two. Rare enough to stay an event. */
+    property bool meteors: true
+
     /** True once every sprite has settled, one way or the other. */
     readonly property bool ready: [
         violet, cyan, magenta, starsFar, starsNear,
@@ -301,6 +304,95 @@ Item {
         TwinkleLayer { id: twinkleA; source: "../images/stars-twinkle-a.png"; period: 4300; direction: 1 }
         TwinkleLayer { id: twinkleB; source: "../images/stars-twinkle-b.png"; period: 6700; direction: -1 }
         TwinkleLayer { id: twinkleC; source: "../images/stars-twinkle-c.png"; period: 8900; direction: 1 }
+
+        /*
+            One meteor, reused for every flight.
+
+            The streak is a hairline Rectangle whose gradient runs tail to
+            head, so setting `rotation` aims the whole thing and a flight is
+            x/y plus an opacity envelope on a single quad — nothing is ever
+            re-rasterised. It lives inside the same clipped Item as the stars,
+            at the same depth, and under the vignette like everything else.
+
+            The travel is deliberately linear: a meteor moves at constant
+            speed, and any easing here reads as the sky decelerating.
+        */
+        Rectangle {
+            id: meteor
+
+            width: nebula.unit * 0.075
+            height: Math.max(1, Math.round(nebula.unit * 0.0011))
+            radius: height / 2
+            opacity: 0
+            visible: nebula.meteors && opacity > 0
+            gradient: Gradient {
+                orientation: Gradient.Horizontal
+                // Tail dissolves into the nebula's violet before it reaches
+                // white: the streak should look lit by this sky, not pasted
+                // over it.
+                GradientStop { position: 0.00; color: Qt.rgba(0.72, 0.60, 1.00, 0.00) }
+                GradientStop { position: 0.60; color: Qt.rgba(0.85, 0.78, 1.00, 0.55) }
+                GradientStop { position: 0.94; color: Qt.rgba(1.00, 1.00, 1.00, 1.00) }
+                GradientStop { position: 1.00; color: Qt.rgba(1.00, 1.00, 1.00, 0.00) }
+            }
+        }
+
+        SequentialAnimation {
+            id: flight
+            paused: flight.running && !nebula.animating
+
+            ParallelAnimation {
+                NumberAnimation { id: flightX; target: meteor; property: "x"; easing.type: Easing.Linear }
+                NumberAnimation { id: flightY; target: meteor; property: "y"; easing.type: Easing.Linear }
+                SequentialAnimation {
+                    NumberAnimation { id: flare; target: meteor; property: "opacity"; from: 0; to: 0.9; easing.type: Easing.OutQuad }
+                    NumberAnimation { id: burnout; target: meteor; property: "opacity"; to: 0; easing.type: Easing.InQuad }
+                }
+            }
+        }
+
+        // 45s to 2.5min between flights, re-rolled every time so there is no
+        // rhythm to catch. Stops dead with the rest of the motion; a flight
+        // already in the air pauses mid-streak and finishes on return.
+        Timer {
+            id: meteorClock
+            running: nebula.meteors && nebula.animating
+            repeat: true
+            interval: 45000 + Math.round(Math.random() * 105000)
+            onTriggered: {
+                nebula.meteorNow();
+                interval = 45000 + Math.round(Math.random() * 105000);
+            }
+        }
+    }
+
+    /** Fire one meteor immediately. The scheduler's entry point, kept public
+        because an offscreen harness cannot wait minutes for the real timer. */
+    function meteorNow(): void {
+        const toRad = Math.PI / 180;
+        // Shallow and always downward; half the flights travel leftward.
+        const pitch = 18 + Math.random() * 20;
+        const angle = Math.random() < 0.5 ? pitch : 180 - pitch;
+        const dist = nebula.unit * (0.16 + Math.random() * 0.14);
+        // Screen y grows downward, so +sin is down for either direction.
+        const dx = Math.cos(angle * toRad) * dist;
+        const dy = Math.sin(angle * toRad) * dist;
+        // Upper half of the sky, biased away from the edges, and centred on
+        // the flight so neither end starts already clipped.
+        const sx = nebula.width * (0.08 + Math.random() * 0.84) - meteor.width / 2 - dx / 2;
+        const sy = nebula.height * (0.06 + Math.random() * 0.42) - dy / 2;
+        const life = 750 + Math.round(Math.random() * 500);
+
+        meteor.rotation = angle;
+        flightX.from = sx;
+        flightX.to = sx + dx;
+        flightX.duration = life;
+        flightY.from = sy;
+        flightY.to = sy + dy;
+        flightY.duration = life;
+        flare.duration = Math.round(life * 0.18);
+        burnout.duration = life - flare.duration;
+        flight.restart();
     }
 
     // ------------------------------------------------------- vignette, grain

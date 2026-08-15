@@ -85,6 +85,24 @@ Item {
     property int cursor: 0
     property int turn: 0
 
+    /*
+        How many decode failures a single turn may chase before giving up.
+
+        A card that cannot decode its picture asks for the next one, which
+        may itself be broken; the budget is one full lap of the playlist per
+        turn, so every good file gets a chance and a folder of nothing but
+        broken files comes to rest instead of spinning forever.
+    */
+    property int skipBudget: 0
+
+    function skipFailed(slot: int): void {
+        if (gallery.skipBudget <= 0) {
+            return;
+        }
+        gallery.skipBudget -= 1;
+        gallery.fill(slot);
+    }
+
     function rebuild(): void {
         const n = files.count;
         let order = [];
@@ -102,6 +120,7 @@ Item {
         gallery.playlist = order;
         gallery.cursor = 0;
         gallery.turn = 0;
+        gallery.skipBudget = n;
         for (let s = 0; s < 3; ++s) {
             gallery.fill(s);
         }
@@ -127,7 +146,10 @@ Item {
     FolderListModel {
         id: files
         folder: gallery.folderUrl
-        nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp"]
+        // AVIF and JPEG XL decode wherever kimageformats is installed, which
+        // on Plasma is nearly everywhere; where it is not, the decode fails
+        // and the skip budget quietly steps past them.
+        nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp", "*.avif", "*.jxl"]
         caseSensitive: false
         showDirs: false
         showHidden: false
@@ -146,6 +168,7 @@ Item {
     }
 
     onActiveSlotsChanged: {
+        gallery.skipBudget = gallery.playlist.length;
         for (let s = 0; s < 3; ++s) {
             gallery.fill(s);
         }
@@ -158,6 +181,7 @@ Item {
         repeat: true
         interval: Math.max(5, gallery.interval / gallery.activeSlots) * 1000
         onTriggered: {
+            gallery.skipBudget = gallery.playlist.length;
             gallery.fill(gallery.turn);
             gallery.turn = (gallery.turn + 1) % gallery.activeSlots;
         }
@@ -242,6 +266,7 @@ Item {
             glass: gallery.glassFrame && gallery.framed
             frameRadius: gallery.frameRadius
             live: gallery.live
+            onSourceFailed: gallery.skipFailed(0)
         }
 
         GalleryCard {
@@ -253,6 +278,7 @@ Item {
             glass: gallery.glassFrame && gallery.framed
             frameRadius: gallery.frameRadius
             live: gallery.live
+            onSourceFailed: gallery.skipFailed(1)
         }
 
         GalleryCard {
@@ -264,6 +290,7 @@ Item {
             glass: gallery.glassFrame && gallery.framed
             frameRadius: gallery.frameRadius
             live: gallery.live
+            onSourceFailed: gallery.skipFailed(2)
         }
     }
 }

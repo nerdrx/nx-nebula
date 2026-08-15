@@ -48,6 +48,7 @@ WallpaperItem {
         animating: root.live && nebula.visible && root.configuration.Animate
         speed: Math.max(0.25, Math.min(3.0, root.configuration.Speed / 100))
         twinkle: root.configuration.Twinkle
+        meteors: root.configuration.Meteors
 
         onReadyChanged: {
             if (nebula.ready) {
@@ -77,6 +78,7 @@ WallpaperItem {
         visible: root.configuration.ShowClock
         active: clock.visible && root.onScreen
         position: root.configuration.ClockPosition
+        timeFormat: root.configuration.TimeFormat
         overPhotos: root.galleryMode
     }
 }

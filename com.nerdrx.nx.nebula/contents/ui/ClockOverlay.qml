@@ -34,6 +34,11 @@ Item {
     /** Raised when the clock sits over photographs rather than the nebula. */
     property bool overPhotos: false
 
+    /** 0 = follow the locale, 1 = force 12-hour, 2 = force 24-hour. */
+    property int timeFormat: 0
+
+    onTimeFormatChanged: clock.refresh()
+
     readonly property real daySize: Math.max(18, Math.round(height * 0.075))
     readonly property real dateSize: Math.max(9, Math.round(height * 0.0165))
     readonly property real timeSize: Math.max(11, Math.round(height * 0.023))
@@ -56,14 +61,24 @@ Item {
         const month = Qt.formatDate(now, "MMM").toUpperCase().replace(/[^\p{L}\p{N}]/gu, "");
         clock.dateText = clock.pad(now.getDate()) + " " + month + " " + now.getFullYear();
 
+        // "AP" in the locale's own short time format is how Qt says this
+        // locale counts to twelve; everything else counts to twenty-four.
+        const twelve = clock.timeFormat === 1
+            || (clock.timeFormat === 0
+                && Qt.locale().timeFormat(Locale.ShortFormat).search(/ap/i) !== -1);
+
         let hour = now.getHours();
-        const meridiem = hour < 12 ? "AM" : "PM";
-        hour = hour % 12;
-        if (hour === 0) {
-            hour = 12;
+        if (twelve) {
+            const meridiem = hour < 12 ? "AM" : "PM";
+            hour = hour % 12;
+            if (hour === 0) {
+                hour = 12;
+            }
+            clock.timeText = "– " + clock.pad(hour) + ":" + clock.pad(now.getMinutes())
+                + " " + meridiem + " –";
+        } else {
+            clock.timeText = "– " + clock.pad(hour) + ":" + clock.pad(now.getMinutes()) + " –";
         }
-        clock.timeText = "– " + clock.pad(hour) + ":" + clock.pad(now.getMinutes())
-            + " " + meridiem + " –";
     }
 
     Timer {

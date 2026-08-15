@@ -46,6 +46,10 @@ Item {
 
     readonly property bool loaded: front.status === Image.Ready
 
+    /** The incoming picture could not be decoded. The gallery skips it;
+        without this a broken file squats in the hidden slot for a turn. */
+    signal sourceFailed()
+
     /*
         Whether the glass treatment is actually in effect.
 
@@ -87,6 +91,8 @@ Item {
             // than dropping the turn, or the rotation visibly stalls.
             if (back.status === Image.Ready) {
                 card.promote(back);
+            } else if (back.status === Image.Error) {
+                card.sourceFailed();
             }
             return;
         }
@@ -143,6 +149,10 @@ Item {
         onStatusChanged: {
             if (status === Image.Ready && !slot.shown) {
                 card.promote(slot);
+            } else if (status === Image.Error && !slot.shown) {
+                // Only the hidden slot: the front picture decoded once and
+                // cannot go bad, so this is always the incoming one.
+                card.sourceFailed();
             }
         }
 

@@ -11,13 +11,15 @@ transform and opacity only, fully paused whenever the desktop isn't visible.
 ## Features
 
 - **Living nebula** — blobs drift on 35–60 s orbits with a slow breathe;
-  sparse parallax starfield with gentle twinkle. Speed dial from 0.25×
-  (subliminal) to 3×. Identical composition to the static NX Nebula
-  wallpaper, so lock screen and desktop match.
+  sparse parallax starfield with gentle twinkle, and a shooting star every
+  minute or two. Speed dial from 0.25× (subliminal) to 3×. Identical
+  composition to the static NX Nebula wallpaper, so lock screen and desktop
+  match.
 - **Clock overlay** — wide-tracked day name, date, and time, centered or
-  top-centered.
-- **Folder gallery** — point it at a folder; images rotate on an interval
-  with crossfades, optional shuffle.
+  top-centered; 12/24-hour follows the system locale, or force either.
+- **Folder gallery** — point it at a folder (JPEG/PNG/WebP/BMP/AVIF/JXL);
+  images rotate on an interval with crossfades, optional shuffle, and broken
+  files are skipped instead of stalling a slot.
 - **Aspect-mismatch strategies** (the ultrawide problem): fit / fill /
   pan-scan modes; letterbox backdrop as nebula, blurred self-copy, or dim;
   optional glass frame; and an ultrawide mode that packs 2–3 portrait images
