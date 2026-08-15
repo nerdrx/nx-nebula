@@ -29,10 +29,17 @@ transform and opacity only, fully paused whenever the desktop isn't visible.
   and dissolves. Pre-rendered like everything else; still no shaders.
 - **Clock overlay** — wide-tracked day name, date, and time, centered or
   top-centered; 12/24-hour follows the system locale, or force either.
-- **Folder gallery** — point it at a folder (JPEG/PNG/WebP/BMP/AVIF/JXL);
-  images rotate on an interval with crossfades, optional shuffle, EXIF
-  orientation respected, and broken files are skipped instead of stalling a
-  slot.
+- **Folder gallery** — point it at a folder (JPEG/PNG/WebP/BMP/AVIF/JXL)
+  and it walks the subfolders too; images rotate on an interval with
+  crossfades and a gentle arrival settle, optional shuffle, EXIF orientation
+  respected, and broken files are skipped instead of stalling a slot.
+  Optional captions set the file name under each photo in the NX type, and
+  a "one photo per day" mode turns the wall into a daily print every screen
+  agrees on.
+- **A packing curator** — on ultrawide rows a hidden scout decodes postage
+  stamps of what's coming just for their aspect ratios, and each turn picks
+  the photo that fills the row best — with a fairness cap so an awkward
+  shape still gets its day.
 - **Aspect-mismatch strategies** (the ultrawide problem): fit / fill /
   pan-scan modes; letterbox backdrop as nebula, blurred self-copy, or dim;
   frame styles from a plain lit tile through a glowing tile to a rounded

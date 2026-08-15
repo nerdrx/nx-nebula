@@ -55,6 +55,18 @@
       <label>Folder the gallery reads images from</label>
       <default></default>
     </entry>
+    <entry name="Recursive" type="bool">
+      <label>Walk subfolders too (3 levels, 2000 images at most)</label>
+      <default>true</default>
+    </entry>
+    <entry name="DailyPhoto" type="bool">
+      <label>One deterministic photo per day instead of a rotation</label>
+      <default>false</default>
+    </entry>
+    <entry name="ShowCaptions" type="bool">
+      <label>Caption each photo with its cleaned-up file name</label>
+      <default>false</default>
+    </entry>
     <entry name="Interval" type="int">
       <label>Seconds an image stays on screen</label>
       <default>300</default>

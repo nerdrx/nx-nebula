@@ -38,6 +38,9 @@ Item {
     /** Motion gate, shared with the rest of the wallpaper. */
     property bool live: true
 
+    /** Show the photo's cleaned-up file name under the card. */
+    property bool caption: false
+
     /** Corner radius, DESIGN --radius scaled to the screen. */
     property real frameRadius: 18
 
@@ -188,6 +191,27 @@ Item {
         property bool shown: false
         property int generation: 0
 
+        // Arrival settle: a new picture lands 1.5% large and eases down to
+        // rest over a second, so it arrives instead of appearing. Transform
+        // only, skipped entirely under reduced motion via the live gate.
+        property real settle: 0
+
+        onShownChanged: {
+            if (slot.shown && card.live) {
+                slot.settle = 0.015;
+                settleBack.restart();
+            }
+        }
+
+        NumberAnimation {
+            id: settleBack
+            target: slot
+            property: "settle"
+            to: 0
+            duration: 1100
+            easing.type: Easing.OutCubic
+        }
+
         readonly property bool panning: card.fitMode === 2
         readonly property real over: panning ? 1.10 : 1.0
         readonly property real sign: (generation % 2 === 0) ? 1 : -1
@@ -210,7 +234,7 @@ Item {
         // this Qt shows them the way the sensor saw them.
         autoTransform: true
         opacity: shown ? 1 : 0
-        scale: 1 + zoom
+        scale: 1 + zoom + settle
 
         transform: Translate { id: pan }
 
@@ -329,9 +353,11 @@ Item {
 
     // The halo behind a square tile. Declared before the plate so the glow
     // stays underneath; the rounded style gets its bloom from GlassSurface
-    // instead.
+    // instead. Oversized by the halo's own reach so the glow never has to
+    // paint outside an item's bounds — see the note in BloomHalo.qml.
     Loader {
         anchors.fill: parent
+        anchors.margins: item ? -item.reach : 0
         active: card.frameStyle === 1 && card.effectsPossible
         source: "BloomHalo.qml"
         onLoaded: item.tint = Qt.binding(() => card.glowColor)
@@ -369,6 +395,31 @@ Item {
             Slot { id: imgA; shown: card.useA }
             Slot { id: imgB; shown: !card.useA }
         }
+    }
+
+    /*
+        The caption: the file name, dressed for the wall. Extension gone,
+        separators to spaces, set in the same wide-tracked small type as the
+        clock's date line and hung just under the card. It crossfades with
+        the pictures because it reads the *front* slot.
+    */
+    Text {
+        visible: card.caption
+        anchors.top: parent.bottom
+        anchors.topMargin: Math.max(10, Math.round(card.frameRadius * 0.7))
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.horizontalCenterOffset: Math.round(font.letterSpacing / 2)
+        text: {
+            const name = decodeURIComponent(String(card.front.source).split("/").pop());
+            return name.replace(/\.[^.]+$/, "").replace(/[_\-.]+/g, " ").trim().toUpperCase();
+        }
+        color: "#efeaff"
+        opacity: 0.72
+        style: Text.Outline
+        styleColor: Qt.rgba(0, 0, 0, 0.5)
+        font.pixelSize: Math.max(10, Math.round(card.height * 0.022))
+        font.weight: Font.Medium
+        font.letterSpacing: Math.max(10, Math.round(card.height * 0.022)) * 0.3
     }
 
     Loader {

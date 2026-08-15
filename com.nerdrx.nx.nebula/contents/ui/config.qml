@@ -53,6 +53,15 @@ Kirigami.FormLayout {
     property alias cfg_Shuffle: shuffle.checked
     property bool cfg_ShuffleDefault: true
 
+    property alias cfg_Recursive: recursive.checked
+    property bool cfg_RecursiveDefault: true
+
+    property alias cfg_DailyPhoto: dailyPhoto.checked
+    property bool cfg_DailyPhotoDefault: false
+
+    property alias cfg_ShowCaptions: showCaptions.checked
+    property bool cfg_ShowCaptionsDefault: false
+
     property int cfg_FitMode: 0
     property int cfg_FitModeDefault: 0
 
@@ -226,9 +235,15 @@ Kirigami.FormLayout {
         onAccepted: root.cfg_GalleryFolder = selectedFolder
     }
 
+    QQC2.CheckBox {
+        id: recursive
+        enabled: root.galleryOn
+        text: i18nd(root.dom, "Include subfolders")
+    }
+
     QQC2.SpinBox {
         Kirigami.FormData.label: i18nd(root.dom, "Change every:")
-        enabled: root.galleryOn
+        enabled: root.galleryOn && !dailyPhoto.checked
         from: 5
         to: 86400
         stepSize: 30
@@ -239,10 +254,23 @@ Kirigami.FormLayout {
     }
 
     QQC2.CheckBox {
+        id: dailyPhoto
+        enabled: root.galleryOn
+        text: i18nd(root.dom, "One photo per day — every screen shows the same one")
+    }
+
+    QQC2.CheckBox {
         id: shuffle
         Kirigami.FormData.label: i18nd(root.dom, "Order:")
-        enabled: root.galleryOn
+        enabled: root.galleryOn && !dailyPhoto.checked
         text: i18nd(root.dom, "Shuffle")
+    }
+
+    QQC2.CheckBox {
+        id: showCaptions
+        Kirigami.FormData.label: i18nd(root.dom, "Captions:")
+        enabled: root.galleryOn
+        text: i18nd(root.dom, "The file name, under each photo")
     }
 
     // ----------------------------------------------------------- shape & fit

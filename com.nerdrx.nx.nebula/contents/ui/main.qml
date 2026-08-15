@@ -66,6 +66,9 @@ WallpaperItem {
         live: root.live && gallery.visible
 
         folder: root.configuration.GalleryFolder
+        recursive: root.configuration.Recursive
+        daily: root.configuration.DailyPhoto
+        captions: root.configuration.ShowCaptions
         fitMode: root.configuration.FitMode
         backdrop: root.configuration.Backdrop
         frameStyle: root.configuration.FrameStyle

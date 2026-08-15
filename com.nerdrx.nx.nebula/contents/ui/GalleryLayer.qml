@@ -13,6 +13,11 @@
     time on a stagger. Mixed shapes pack instead of leaving ragged holes
     (DESIGN §5, §11), and the nebula shows through between them.
 
+    The folder is walked recursively (a photo library is a tree, not a
+    directory), the row is packed by a small curator that knows the aspect
+    of what is coming, and "one photo per day" turns the wall into a daily
+    print that every screen agrees on.
+
     Everything animated is a transform or an opacity.
 */
 
@@ -31,6 +36,12 @@ Item {
     property int interval: 300
     property bool shuffle: true
     property bool live: true
+    /** Walk subfolders too. A photo library is rarely flat. */
+    property bool recursive: true
+    /** One deterministic photo per day instead of a rotation. */
+    property bool daily: false
+    /** Caption each photo with its cleaned-up file name. */
+    property bool captions: false
     /** OLED care: wander the card row a few pixels over minutes. */
     property bool burnInGuard: true
 
@@ -52,7 +63,7 @@ Item {
         ? 1
         : Math.max(2, Math.min(3, Math.round(aspect / 1.15)))
 
-    readonly property int activeSlots: Math.max(1, Math.min(slotCount, Math.max(1, files.count)))
+    readonly property int activeSlots: Math.max(1, Math.min(slotCount, Math.max(1, library.length)))
 
     readonly property bool cardsReady: card0.loaded
         && (activeSlots < 2 || card1.loaded)
@@ -82,9 +93,138 @@ Item {
                                            availW / Math.max(0.01, aspectSum))
     readonly property real frameRadius: Math.max(12, Math.min(32, Math.round(18 * height / 1080)))
 
-    // --- playlist ---------------------------------------------------------
+    // --- the library ------------------------------------------------------
+    /*
+        A breadth-first walk of the folder tree, one FolderListModel step at
+        a time (it can only list one directory, so it is pointed at each in
+        turn). Depth and file caps keep a pathological tree from eating the
+        session; hitting a cap is not an error, just a very large library.
+        The walk restarts whenever the root folder changes on disk — cheap,
+        and the only way to notice a new subfolder without watching every
+        directory in the tree.
+    */
+    readonly property int maxDepth: 3
+    readonly property int maxFiles: 2000
 
-    property var playlist: []
+    property var library: []      // every image url found, as strings
+    property var scanQueue: []    // {u: folder url, d: depth} still to walk
+    property bool scanning: false
+    property var walker: null     // the step's own FolderListModel
+
+    /*
+        One freshly created model per directory, folder set at birth. A
+        reused model races: its previous listing's Ready can arrive after
+        the folder property has already been repointed, delivering another
+        directory's rows under the new name — the first victim being the
+        model's implicit initial listing of the process's current directory,
+        which for plasmashell is $HOME.
+    */
+    Component {
+        id: walkerFactory
+
+        FolderListModel {
+            property int depth: 0
+            property bool harvested: false
+
+            nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp", "*.avif", "*.jxl"]
+            caseSensitive: false
+            showDirs: true
+            showFiles: true
+            showHidden: false
+            sortField: FolderListModel.Name
+            onStatusChanged: {
+                if (status === FolderListModel.Ready) {
+                    gallery.harvest();
+                }
+            }
+        }
+    }
+
+    function startScan(): void {
+        if (String(gallery.folderUrl).length === 0) {
+            gallery.library = [];
+            return;
+        }
+        gallery.scanQueue = [{ u: String(gallery.folderUrl), d: 0 }];
+        gallery.library = [];
+        gallery.scanning = true;
+        gallery.advanceScan();
+    }
+
+    function advanceScan(): void {
+        if (gallery.walker) {
+            gallery.walker.destroy();
+            gallery.walker = null;
+        }
+        if (gallery.scanQueue.length === 0 || gallery.library.length >= gallery.maxFiles) {
+            gallery.scanning = false;
+            gallery.rebuild();
+            return;
+        }
+        const q = gallery.scanQueue.slice();
+        const next = q.shift();
+        gallery.scanQueue = q;
+        gallery.walker = walkerFactory.createObject(gallery, { folder: next.u, depth: next.d });
+    }
+
+    function harvest(): void {
+        // Signals from a superseded, not-yet-deleted walker end up here too;
+        // only the current one, exactly once, gets to contribute.
+        const w = gallery.walker;
+        if (!gallery.scanning || !w || w.status !== FolderListModel.Ready || w.harvested) {
+            return;
+        }
+        w.harvested = true;
+        let found = gallery.library.slice();
+        let q = gallery.scanQueue.slice();
+        for (let i = 0; i < w.count && found.length < gallery.maxFiles; ++i) {
+            if (w.get(i, "fileIsDir") === true) {
+                if (gallery.recursive && w.depth + 1 <= gallery.maxDepth) {
+                    q.push({ u: String(w.get(i, "fileUrl")), d: w.depth + 1 });
+                }
+            } else {
+                found.push(String(w.get(i, "fileUrl")));
+            }
+        }
+        gallery.library = found;
+        gallery.scanQueue = q;
+        gallery.advanceScan();
+    }
+
+    // The root watcher. Its rows are never read — the walker does that — but
+    // FolderListModel watches its directory for free, and a change here is
+    // the cue to walk the tree again.
+    FolderListModel {
+        id: rootWatch
+        folder: gallery.folderUrl
+        nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp", "*.avif", "*.jxl"]
+        caseSensitive: false
+        showDirs: true
+        showFiles: true
+        showHidden: false
+        onStatusChanged: {
+            if (status === FolderListModel.Ready) {
+                gallery.startScan();
+            }
+        }
+        onCountChanged: {
+            if (status === FolderListModel.Ready) {
+                rescanSoon.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: rescanSoon
+        interval: 2500
+        onTriggered: gallery.startScan()
+    }
+
+    onRecursiveChanged: gallery.startScan()
+
+    // --- playlist ----------------------------------------------------------
+
+    property var playlist: []   // urls, in play order
     property int cursor: 0
     property int turn: 0
 
@@ -107,13 +247,11 @@ Item {
     }
 
     function rebuild(): void {
-        const n = files.count;
-        let order = [];
-        for (let i = 0; i < n; ++i) {
-            order.push(i);
-        }
-        if (gallery.shuffle) {
-            for (let i = n - 1; i > 0; --i) {
+        // Sorted first: the daily pick and every other instance of this
+        // wallpaper must agree on what "photo n" means.
+        let order = gallery.library.slice().sort();
+        if (gallery.shuffle && !gallery.daily) {
+            for (let i = order.length - 1; i > 0; --i) {
                 const j = Math.floor(Math.random() * (i + 1));
                 const swap = order[i];
                 order[i] = order[j];
@@ -123,50 +261,202 @@ Item {
         gallery.playlist = order;
         gallery.cursor = 0;
         gallery.turn = 0;
-        gallery.skipBudget = n;
+        gallery.skipBudget = order.length;
         for (let s = 0; s < 3; ++s) {
             gallery.fill(s);
         }
+        gallery.scoutAhead();
     }
 
     function takeNext(): url {
         if (gallery.playlist.length === 0) {
             return "";
         }
-        const idx = gallery.playlist[gallery.cursor % gallery.playlist.length];
+        const u = gallery.playlist[gallery.cursor % gallery.playlist.length];
         gallery.cursor = (gallery.cursor + 1) % gallery.playlist.length;
-        return files.get(idx, "fileUrl");
+        return u;
     }
+
+    // --- the curator --------------------------------------------------------
+    /*
+        Aspect-aware packing. With two or three cards up, whichever photo
+        comes next decides whether the row fills the width or leaves ragged
+        margins. A tiny hidden Image walks ahead of the playlist decoding
+        48px thumbnails just for their aspect ratio, and fill() then picks,
+        from the next few photos, the one that brings the row closest to
+        filling the available width at full height. Nothing is skipped —
+        the winner is pulled forward and the others keep their turn.
+    */
+    property var aspectBook: ({})
+    property var scoutList: []
+    /** Rounds the head of the queue has lost the audition. A photo whose
+        shape never suits the row would otherwise wait forever; after three
+        losses it simply shows, and the row is imperfect for one turn. */
+    property int frontLosses: 0
+
+    Image {
+        id: scout
+        visible: false
+        sourceSize.width: 48
+        asynchronous: true
+        cache: false
+        autoTransform: true
+        source: gallery.scoutList.length > 0 ? gallery.scoutList[0] : ""
+        onStatusChanged: {
+            if (gallery.scoutList.length === 0
+                    || (status !== Image.Ready && status !== Image.Error)) {
+                return;
+            }
+            gallery.aspectBook[String(gallery.scoutList[0])] =
+                (status === Image.Ready && implicitHeight > 0)
+                    ? implicitWidth / implicitHeight
+                    : 1.5;
+            gallery.scoutList = gallery.scoutList.slice(1);
+        }
+    }
+
+    function scoutAhead(): void {
+        if (gallery.daily || gallery.activeSlots < 2) {
+            return;
+        }
+        const n = gallery.playlist.length;
+        let want = [];
+        for (let k = 0; k < Math.min(4, n); ++k) {
+            const u = gallery.playlist[(gallery.cursor + k) % n];
+            if (gallery.aspectBook[String(u)] === undefined) {
+                want.push(u);
+            }
+        }
+        gallery.scoutList = want;
+    }
+
+    function takeBest(slot: int): url {
+        const n = gallery.playlist.length;
+        if (n === 0) {
+            return "";
+        }
+        if (gallery.activeSlots < 2 || !gallery.framed) {
+            return gallery.takeNext();
+        }
+        let others = 0;
+        if (slot !== 0) {
+            others += card0.aspect;
+        }
+        if (slot !== 1 && gallery.activeSlots > 1) {
+            others += card1.aspect;
+        }
+        if (slot !== 2 && gallery.activeSlots > 2) {
+            others += card2.aspect;
+        }
+        const ideal = gallery.availW / Math.max(1, gallery.height * 0.80);
+        let bestK = 0;
+        let bestErr = Number.MAX_VALUE;
+        for (let k = 0; k < Math.min(4, n); ++k) {
+            const u = gallery.playlist[(gallery.cursor + k) % n];
+            const known = gallery.aspectBook[String(u)];
+            const err = Math.abs(others + (known !== undefined ? known : 1.5) - ideal);
+            if (err < bestErr) {
+                bestErr = err;
+                bestK = k;
+            }
+        }
+        if (bestK === 0) {
+            gallery.frontLosses = 0;
+        } else if (++gallery.frontLosses >= 3) {
+            gallery.frontLosses = 0;
+            bestK = 0;
+        }
+        if (bestK > 0) {
+            const list = gallery.playlist.slice();
+            const from = (gallery.cursor + bestK) % n;
+            const to = gallery.cursor % n;
+            const w = list[from];
+            list[from] = list[to];
+            list[to] = w;
+            gallery.playlist = list;
+        }
+        const pick = gallery.takeNext();
+        gallery.scoutAhead();
+        return pick;
+    }
+
+    // --- photo of the day ---------------------------------------------------
+
+    function dayNumber(): int {
+        const now = new Date();
+        return now.getFullYear() * 372 + now.getMonth() * 31 + now.getDate();
+    }
+
+    /** Which photo a slot shows today. Pure arithmetic over the sorted
+        library, so every screen and every restart lands on the same one. */
+    function dailyUrl(slot: int): url {
+        const n = gallery.playlist.length;
+        if (n === 0) {
+            return "";
+        }
+        return gallery.playlist[(gallery.dayNumber() + slot) % n];
+    }
+
+    property int shownDay: 0
 
     function fill(slot: int): void {
         if (slot >= gallery.activeSlots) {
             return;
         }
         const target = slot === 0 ? card0 : (slot === 1 ? card1 : card2);
-        target.imageSource = gallery.takeNext();
-    }
-
-    FolderListModel {
-        id: files
-        folder: gallery.folderUrl
-        // AVIF and JPEG XL decode wherever kimageformats is installed, which
-        // on Plasma is nearly everywhere; where it is not, the decode fails
-        // and the skip budget quietly steps past them.
-        nameFilters: ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.bmp", "*.avif", "*.jxl"]
-        caseSensitive: false
-        showDirs: false
-        showHidden: false
-        sortField: FolderListModel.Name
-        onStatusChanged: {
-            if (status === FolderListModel.Ready) {
-                gallery.rebuild();
-            }
+        if (gallery.daily) {
+            gallery.shownDay = gallery.dayNumber();
+            target.imageSource = gallery.dailyUrl(slot);
+        } else {
+            target.imageSource = gallery.takeBest(slot);
         }
     }
 
-    onShuffleChanged: {
-        if (files.status === FolderListModel.Ready) {
+    onDailyChanged: {
+        if (gallery.library.length > 0) {
             gallery.rebuild();
+        }
+    }
+
+    // Sleeping through midnight must not stick yesterday's photo: whenever
+    // the wall comes back to life on a new day, refill.
+    onLiveChanged: {
+        if (gallery.live && gallery.daily && gallery.shownDay !== gallery.dayNumber()
+                && gallery.library.length > 0) {
+            gallery.rebuild();
+        }
+    }
+
+    // Realigned to the coming midnight on every firing, same trick as the
+    // clock's minute tick.
+    Timer {
+        id: midnight
+        running: gallery.daily && gallery.live && gallery.visible
+        repeat: true
+        interval: gallery.msToMidnight()
+        onTriggered: {
+            gallery.rebuild();
+            midnight.interval = gallery.msToMidnight();
+        }
+    }
+
+    function msToMidnight(): real {
+        const now = new Date();
+        const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        return Math.max(1000, next - now);
+    }
+
+    // One slot at a time, so the wall never blinks all at once. Each card
+    // still sits for the full interval; the changes are just interleaved.
+    Timer {
+        running: gallery.live && gallery.visible && !gallery.daily
+            && gallery.playlist.length > gallery.activeSlots
+        repeat: true
+        interval: Math.max(5, gallery.interval / gallery.activeSlots) * 1000
+        onTriggered: {
+            gallery.skipBudget = gallery.playlist.length;
+            gallery.fill(gallery.turn);
+            gallery.turn = (gallery.turn + 1) % gallery.activeSlots;
         }
     }
 
@@ -174,19 +464,6 @@ Item {
         gallery.skipBudget = gallery.playlist.length;
         for (let s = 0; s < 3; ++s) {
             gallery.fill(s);
-        }
-    }
-
-    // One slot at a time, so the wall never blinks all at once. Each card
-    // still sits for the full interval; the changes are just interleaved.
-    Timer {
-        running: gallery.live && gallery.visible && gallery.playlist.length > gallery.activeSlots
-        repeat: true
-        interval: Math.max(5, gallery.interval / gallery.activeSlots) * 1000
-        onTriggered: {
-            gallery.skipBudget = gallery.playlist.length;
-            gallery.fill(gallery.turn);
-            gallery.turn = (gallery.turn + 1) % gallery.activeSlots;
         }
     }
 
@@ -300,6 +577,7 @@ Item {
             frameStyle: gallery.framed ? gallery.frameStyle : 0
             frameRadius: gallery.frameRadius
             live: gallery.live
+            caption: gallery.captions && gallery.framed
             onSourceFailed: gallery.skipFailed(0)
         }
 
@@ -312,6 +590,7 @@ Item {
             frameStyle: gallery.framed ? gallery.frameStyle : 0
             frameRadius: gallery.frameRadius
             live: gallery.live
+            caption: gallery.captions && gallery.framed
             onSourceFailed: gallery.skipFailed(1)
         }
 
@@ -324,6 +603,7 @@ Item {
             frameStyle: gallery.framed ? gallery.frameStyle : 0
             frameRadius: gallery.frameRadius
             live: gallery.live
+            caption: gallery.captions && gallery.framed
             onSourceFailed: gallery.skipFailed(2)
         }
     }

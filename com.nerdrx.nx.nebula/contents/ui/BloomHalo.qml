@@ -8,9 +8,16 @@
 
     Separate file for the usual reason — a missing QtQuick.Effects must fail
     here and nowhere else; GalleryCard keeps its plain plate when this never
-    loads. The halo body itself is hidden behind the card, so only the glow
-    that bleeds past the edges is ever seen, exactly like the bloom half of
-    GlassSurface.
+    loads.
+
+    Geometry note, learned the hard way: MultiEffect's padding (auto or
+    manual paddingRect) mis-anchors its texture when the item is resized
+    after creation — and gallery cards resize whenever a freshly decoded
+    photo brings its real aspect. So nothing here paints outside its bounds.
+    This item is `reach` larger than the card on every side (the loader
+    oversizes by exactly that), the glowing shape is inset back to the card
+    rect, and the blur spreads into room the item already owns. Resizes flow
+    through plain anchors and can never leave the halo misaligned.
 */
 
 import QtQuick
@@ -22,6 +29,10 @@ Item {
     /** Glow colour; GalleryCard feeds it the photo's own dominant hue. */
     property color tint: "#7700ff"
 
+    /** Room the glow gets on every side. The loader that creates this item
+        must oversize it by the same amount. */
+    readonly property int reach: 120
+
     Item {
         id: shape
         anchors.fill: parent
@@ -30,6 +41,7 @@ Item {
 
         Rectangle {
             anchors.fill: parent
+            anchors.margins: halo.reach
             color: halo.tint
         }
     }
@@ -37,11 +49,7 @@ Item {
     MultiEffect {
         anchors.fill: parent
         source: shape
-        // Auto padding stops at the blur radius, where a gaussian is still
-        // visibly non-zero — the glow ends on a hard rectangle. Triple the
-        // room lets it actually reach black before the texture runs out.
         autoPaddingEnabled: false
-        paddingRect: Qt.rect(120, 120, 120, 120)
         blurEnabled: true
         blur: 1.0
         blurMax: 40

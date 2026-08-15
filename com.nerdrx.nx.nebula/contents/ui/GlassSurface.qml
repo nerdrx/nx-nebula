@@ -38,33 +38,41 @@ Item {
     /** Bloom colour; GalleryCard feeds it the photo's own dominant hue. */
     property color tint: "#7700ff"
 
-    // A solid violet card-shape, blurred outward. Everything inside the
-    // card's own outline is hidden behind the picture; only the halo escapes.
+    /** Room the bloom gets on every side of the card. */
+    readonly property int reach: 120
+
+    // A solid card-shape in the tint colour, blurred outward. Everything
+    // inside the card's own outline is hidden behind the picture; only the
+    // halo escapes. The subtree is oversized and the shape inset back to
+    // the card rect, so the blur never paints outside an item's bounds —
+    // MultiEffect padding mis-anchors on resize (see BloomHalo.qml).
     Item {
-        id: bloomShape
         anchors.fill: parent
-        visible: false
-        layer.enabled: true
+        anchors.margins: -glass.reach
 
-        Rectangle {
+        Item {
+            id: bloomShape
             anchors.fill: parent
-            radius: glass.cornerRadius
-            color: glass.tint
-        }
-    }
+            visible: false
+            layer.enabled: true
 
-    MultiEffect {
-        anchors.fill: parent
-        source: bloomShape
-        // Auto padding stops at the blur radius, where a gaussian is still
-        // visibly non-zero — the bloom ends on a hard rectangle. Triple the
-        // room lets it actually reach black before the texture runs out.
-        autoPaddingEnabled: false
-        paddingRect: Qt.rect(120, 120, 120, 120)
-        blurEnabled: true
-        blur: 1.0
-        blurMax: 40
-        opacity: 0.34
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: glass.reach
+                radius: glass.cornerRadius
+                color: glass.tint
+            }
+        }
+
+        MultiEffect {
+            anchors.fill: parent
+            source: bloomShape
+            autoPaddingEnabled: false
+            blurEnabled: true
+            blur: 1.0
+            blurMax: 40
+            opacity: 0.34
+        }
     }
 
     MultiEffect {
