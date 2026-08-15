@@ -101,10 +101,6 @@ Item {
         card.useA = (img === imgA);
     }
 
-    /** Which slot of the gallery row this is; only keeps the sample files
-        of side-by-side cards from fighting over one name. */
-    property int cardIndex: 0
-
     // Sampling waits out the 800ms crossfade: a grab taken mid-fade sees
     // the picture at a fraction of its opacity and reads too dark.
     onUseAChanged: sampleDelay.restart()
@@ -123,20 +119,30 @@ Item {
         own URL would decode the entire file a second time. What does work:
         grab the already-decoded item at 8x8, save that postage stamp to the
         cache directory, and let the Canvas load those hundred bytes back.
+
+        The file is named after the *photo's URL*, never reused for another
+        picture: Qt's global pixmap cache keys on the URL and keeps serving
+        the first pixels it ever saw for it, no matter what is on disk by
+        then. With content-addressed names a cache hit is by definition the
+        right answer, and one folder's worth of 130-byte stamps is nothing.
     */
-    readonly property string samplePath:
+    readonly property string sampleDir:
         StandardPaths.writableLocation(StandardPaths.CacheLocation)
             .toString().replace("file://", "")
-        + "/nx-nebula-glow-" + card.cardIndex + ".png"
+
+    property string pendingSample: ""
 
     function requestGlowSample(): void {
         if (card.frameStyle < 1 || card.front.status !== Image.Ready) {
             return;
         }
+        const path = card.sampleDir + "/nx-nebula-glow-"
+            + Qt.md5(String(card.front.source)) + ".png";
         try {
             card.front.grabToImage(result => {
-                if (result.saveToFile(card.samplePath)) {
-                    sampler.loadImage("file://" + card.samplePath);
+                if (result.saveToFile(path)) {
+                    card.pendingSample = path;
+                    sampler.loadImage("file://" + path);
                 }
             }, Qt.size(sampler.width, sampler.height));
         } catch (err) {
@@ -261,10 +267,14 @@ Item {
         renderTarget: Canvas.Image
         onImageLoaded: sampler.requestPaint()
         onPaint: {
-            const grabbed = "file://" + card.samplePath;
+            if (card.pendingSample.length === 0) {
+                return;
+            }
+            const grabbed = "file://" + card.pendingSample;
             if (!sampler.isImageLoaded(grabbed)) {
                 return;
             }
+            card.pendingSample = "";
             try {
                 const ctx = sampler.getContext("2d");
                 ctx.clearRect(0, 0, sampler.width, sampler.height);

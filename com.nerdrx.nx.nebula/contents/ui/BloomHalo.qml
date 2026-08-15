@@ -37,7 +37,11 @@ Item {
     MultiEffect {
         anchors.fill: parent
         source: shape
-        autoPaddingEnabled: true
+        // Auto padding stops at the blur radius, where a gaussian is still
+        // visibly non-zero — the glow ends on a hard rectangle. Triple the
+        // room lets it actually reach black before the texture runs out.
+        autoPaddingEnabled: false
+        paddingRect: Qt.rect(120, 120, 120, 120)
         blurEnabled: true
         blur: 1.0
         blurMax: 40

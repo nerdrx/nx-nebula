@@ -291,7 +291,6 @@ Item {
 
         GalleryCard {
             id: card0
-            cardIndex: 0
             visible: true
             width: gallery.framed ? gallery.cardH * aspect : gallery.width
             height: gallery.framed ? gallery.cardH : gallery.height
@@ -306,7 +305,6 @@ Item {
 
         GalleryCard {
             id: card1
-            cardIndex: 1
             visible: gallery.activeSlots > 1
             width: gallery.cardH * aspect
             height: gallery.cardH
@@ -319,7 +317,6 @@ Item {
 
         GalleryCard {
             id: card2
-            cardIndex: 2
             visible: gallery.activeSlots > 2
             width: gallery.cardH * aspect
             height: gallery.cardH
