@@ -40,6 +40,11 @@ Item {
     /** OLED care: wander the whole overlay a few pixels over minutes. */
     property bool drift: false
 
+    /** The sky's one-line almanac — "THE PERSEIDS TONIGHT", "FULL MOON" —
+        or empty, which is most nights, and then the line simply is not
+        there. Fed by NebulaLayer through main.qml. */
+    property string almanac: ""
+
     onTimeFormatChanged: clock.refresh()
 
     readonly property real daySize: Math.max(18, Math.round(height * 0.075))
@@ -218,6 +223,23 @@ Item {
                 font.pixelSize: clock.timeSize
                 font.weight: Font.Normal
                 font.letterSpacing: clock.timeSize * 0.22
+            }
+
+            // The almanac. Dimmer and smaller than everything above it —
+            // a whisper under the time, and gone entirely on the ordinary
+            // nights that make the special ones special.
+            Text {
+                visible: clock.almanac.length > 0
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.horizontalCenterOffset: Math.round(font.letterSpacing / 2)
+                text: clock.almanac.toUpperCase()
+                color: "#efeaff"
+                opacity: 0.55
+                style: Text.Outline
+                styleColor: Qt.rgba(0, 0, 0, 0.5)
+                font.pixelSize: Math.max(9, Math.round(clock.timeSize * 0.78))
+                font.weight: Font.Medium
+                font.letterSpacing: Math.max(9, Math.round(clock.timeSize * 0.78)) * 0.3
             }
         }
     }

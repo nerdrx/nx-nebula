@@ -52,6 +52,7 @@ WallpaperItem {
         dayNight: root.configuration.DayNight
         aurora: root.configuration.Aurora
         celestials: root.configuration.Celestials
+        southern: root.configuration.Southern
 
         onReadyChanged: {
             if (nebula.ready) {
@@ -86,6 +87,7 @@ WallpaperItem {
         active: clock.visible && root.onScreen
         position: root.configuration.ClockPosition
         timeFormat: root.configuration.TimeFormat
+        almanac: root.configuration.Almanac ? nebula.almanacText : ""
         overPhotos: root.galleryMode
         // The burn-in wander is motion, so it obeys `live` (and with it
         // reduced motion), unlike the clock's once-a-minute text tick.

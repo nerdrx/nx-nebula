@@ -58,6 +58,14 @@ Item {
         the deepest nights, the evening star at dusk, a rare comet. */
     property bool celestials: true
 
+    /** Southern sky: the seasons flip, and so does the moon — a southern
+        observer sees it wax on the left. */
+    property bool southern: false
+
+    /** What the sky has to say tonight, or nothing. Fed to the clock's
+        almanac line; refreshed by the minute tick. */
+    property string almanacText: ""
+
     /** Which of the sixteen baked phases the moon shows tonight. */
     property int moonFrame: 0
 
@@ -86,25 +94,73 @@ Item {
     property real night: 0.5
     readonly property real nightNow: dayNight ? night : 0.5
 
+    /** How far the year has pushed dawn and dusk, in hours. Summer nights
+        arrive late and winter ones early — a ±1.2h swing about the
+        equinoxes, mirrored on the southern half of the planet. Not a solar
+        ephemeris, just the season's shape; the exact hours would need a
+        location, and a wallpaper has no business asking for one. */
+    function seasonalShift(when: date): real {
+        const start = new Date(when.getFullYear(), 0, 1);
+        const doy = Math.floor((when - start) / 86400000);
+        const s = 1.2 * Math.cos(2 * Math.PI * (doy - 172) / 365.25);
+        return nebula.southern ? -s : s;
+    }
+
     function skyFactor(when: date): real {
         const smooth = t => {
             t = Math.max(0, Math.min(1, t));
             return t * t * (3 - 2 * t);
         };
         const h = when.getHours() + when.getMinutes() / 60;
+        const shift = nebula.seasonalShift(when);
+        const dawn = 5.5 - shift;    // two-hour ramps start here...
+        const dusk = 19.5 + shift;   // ...and here
         let day;
-        if (h < 5.5) {
+        if (h < dawn) {
             day = 0;
-        } else if (h < 7.5) {
-            day = smooth((h - 5.5) / 2);        // dawn
-        } else if (h < 19.5) {
+        } else if (h < dawn + 2) {
+            day = smooth((h - dawn) / 2);
+        } else if (h < dusk) {
             day = 1;
-        } else if (h < 21.5) {
-            day = 1 - smooth((h - 19.5) / 2);   // dusk
+        } else if (h < dusk + 2) {
+            day = 1 - smooth((h - dusk) / 2);
         } else {
             day = 0;
         }
         return 1 - day;
+    }
+
+    /*
+        The almanac: one short line when the sky has something to say —
+        a shower's peak night, the moon at full or new, the year's turning
+        points. Silence on ordinary nights is the whole point.
+    */
+    function almanacFor(when: date): string {
+        const day = new Date(when.getFullYear(), when.getMonth(), when.getDate());
+        for (const peak of nebula.showerPeaks) {
+            const nearest = new Date(when.getFullYear(), peak[0] - 1, peak[1]);
+            if (Math.abs(day - nearest) < 43200000) {
+                return "The " + peak[2] + " tonight";
+            }
+        }
+        const frame = nebula.moonPhaseFrame(when);
+        if (frame === 8) {
+            return "Full moon";
+        }
+        if (frame === 0) {
+            return "New moon";
+        }
+        const md = (when.getMonth() + 1) * 100 + when.getDate();
+        if (md === 320 || md === 922) {
+            return "Equinox";
+        }
+        if (md === 1221) {
+            return nebula.southern ? "The shortest night" : "The longest night";
+        }
+        if (md === 621) {
+            return nebula.southern ? "The longest night" : "The shortest night";
+        }
+        return "";
     }
 
     // Per-minute steps through a two-hour ramp move this by well under a
@@ -119,6 +175,7 @@ Item {
         onTriggered: {
             nebula.night = nebula.skyFactor(new Date());
             nebula.moonFrame = nebula.moonPhaseFrame(new Date());
+            nebula.almanacText = nebula.almanacFor(new Date());
         }
     }
 
@@ -448,6 +505,8 @@ Item {
             x: nebula.width * 0.815 - span / 2
             y: nebula.height * 0.17 - span / 2
             sourceClipRect: Qt.rect(nebula.moonFrame * 384, 0, 384, 384)
+            // A southern moon waxes on the left.
+            mirror: nebula.southern
             smooth: true
             asynchronous: true
             visible: nebula.celestials && opacity > 0.004
@@ -705,15 +764,15 @@ Item {
         is what makes a shower look like a shower instead of a busy night.
     */
     readonly property var showerPeaks: [
-        [1, 3],    // Quadrantids
-        [4, 22],   // Lyrids
-        [5, 6],    // Eta Aquariids
-        [7, 30],   // Delta Aquariids
-        [8, 12],   // Perseids
-        [10, 21],  // Orionids
-        [11, 17],  // Leonids
-        [12, 14],  // Geminids
-        [12, 22]   // Ursids
+        [1, 3, "Quadrantids"],
+        [4, 22, "Lyrids"],
+        [5, 6, "Eta Aquariids"],
+        [7, 30, "Delta Aquariids"],
+        [8, 12, "Perseids"],
+        [10, 21, "Orionids"],
+        [11, 17, "Leonids"],
+        [12, 14, "Geminids"],
+        [12, 22, "Ursids"]
     ]
 
     /** The night's shared flight angle when a shower is peaking, else -1.

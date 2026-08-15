@@ -33,7 +33,14 @@ transform and opacity only, fully paused whenever the desktop isn't visible.
   (planets don't twinkle); and once every few dark hours a comet makes a
   slow two-minute crossing, violet head running out into a cyan tail.
 - **Clock overlay** — wide-tracked day name, date, and time, centered or
-  top-centered; 12/24-hour follows the system locale, or force either.
+  top-centered; 12/24-hour follows the system locale, or force either. On
+  special nights a quiet almanac line appears under the time — "THE
+  PERSEIDS TONIGHT", "FULL MOON", "THE LONGEST NIGHT" — and on ordinary
+  nights it simply isn't there.
+- **The seasons** — dawn and dusk drift ±1.2 h through the year, so June
+  nights arrive late and December nights early. A southern-hemisphere
+  switch flips the seasons and mirrors the moon, which really does wax on
+  the left down there.
 - **Folder gallery** — point it at a folder (JPEG/PNG/WebP/BMP/AVIF/JXL)
   and it walks the subfolders too; images rotate on an interval with
   crossfades and a gentle arrival settle, optional shuffle, EXIF orientation

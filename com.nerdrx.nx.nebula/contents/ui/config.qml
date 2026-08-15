@@ -44,6 +44,12 @@ Kirigami.FormLayout {
     property alias cfg_Celestials: celestials.checked
     property bool cfg_CelestialsDefault: true
 
+    property alias cfg_Southern: southern.checked
+    property bool cfg_SouthernDefault: false
+
+    property alias cfg_Almanac: almanac.checked
+    property bool cfg_AlmanacDefault: true
+
     property int cfg_Mode: 0
     property int cfg_ModeDefault: 0
 
@@ -173,6 +179,12 @@ Kirigami.FormLayout {
         id: celestials
         enabled: animate.checked
         text: i18nd(root.dom, "The real moon, the Milky Way, the evening star, the odd comet")
+    }
+
+    QQC2.CheckBox {
+        id: southern
+        enabled: animate.checked
+        text: i18nd(root.dom, "Southern hemisphere — seasons and the moon flip")
     }
 
     QQC2.Label {
@@ -386,5 +398,21 @@ Kirigami.FormLayout {
         ]
         currentIndex: root.cfg_TimeFormat
         onActivated: root.cfg_TimeFormat = currentIndex
+    }
+
+    QQC2.CheckBox {
+        id: almanac
+        enabled: showClock.checked
+        text: i18nd(root.dom, "A quiet almanac line on special nights")
+    }
+
+    QQC2.Label {
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+        enabled: showClock.checked && almanac.checked
+        wrapMode: Text.WordWrap
+        font: Kirigami.Theme.smallFont
+        text: i18nd(root.dom,
+            "Shower peaks by name, the moon at full and new, the equinoxes and "
+            + "solstices. Ordinary nights say nothing.")
     }
 }
