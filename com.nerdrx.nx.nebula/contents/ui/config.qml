@@ -41,6 +41,9 @@ Kirigami.FormLayout {
     property alias cfg_Aurora: aurora.checked
     property bool cfg_AuroraDefault: true
 
+    property alias cfg_Celestials: celestials.checked
+    property bool cfg_CelestialsDefault: true
+
     property int cfg_Mode: 0
     property int cfg_ModeDefault: 0
 
@@ -164,6 +167,12 @@ Kirigami.FormLayout {
         id: aurora
         enabled: animate.checked
         text: i18nd(root.dom, "An aurora on the deepest nights")
+    }
+
+    QQC2.CheckBox {
+        id: celestials
+        enabled: animate.checked
+        text: i18nd(root.dom, "The real moon, the Milky Way, the evening star, the odd comet")
     }
 
     QQC2.Label {

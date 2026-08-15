@@ -51,6 +51,7 @@ WallpaperItem {
         meteors: root.configuration.Meteors
         dayNight: root.configuration.DayNight
         aurora: root.configuration.Aurora
+        celestials: root.configuration.Celestials
 
         onReadyChanged: {
             if (nebula.ready) {

@@ -54,6 +54,23 @@ Item {
     /** An aurora on the deepest nights, once or twice an hour. */
     property bool aurora: true
 
+    /** The celestial bodies: the moon in its true phase, the Milky Way on
+        the deepest nights, the evening star at dusk, a rare comet. */
+    property bool celestials: true
+
+    /** Which of the sixteen baked phases the moon shows tonight. */
+    property int moonFrame: 0
+
+    function moonPhaseFrame(when: date): int {
+        // The synodic month, counted from a known new moon
+        // (2000-01-06 18:14 UTC). Off by at most half a day from the
+        // almanac, which for a sixteen-frame moon is exact.
+        const synodic = 2551442876.9;
+        const epoch = 947182440000;
+        const t = ((when.getTime() - epoch) % synodic + synodic) % synodic;
+        return Math.round(t / synodic * 16) % 16;
+    }
+
     /*
         0 = full day, 1 = full night, refreshed once a minute.
 
@@ -92,12 +109,17 @@ Item {
 
     // Per-minute steps through a two-hour ramp move this by well under a
     // percent, so no Behavior is needed — the sky just is the right sky.
+    // Runs whenever the wallpaper is alive, not only when the day/night
+    // *look* is on: the celestial bodies follow the real clock either way.
     Timer {
-        running: nebula.dayNight && nebula.animating
+        running: nebula.animating
         repeat: true
         triggeredOnStart: true
         interval: 60000
-        onTriggered: nebula.night = nebula.skyFactor(new Date())
+        onTriggered: {
+            nebula.night = nebula.skyFactor(new Date());
+            nebula.moonFrame = nebula.moonPhaseFrame(new Date());
+        }
     }
 
     /** True once every sprite has settled, one way or the other. */
@@ -310,6 +332,37 @@ Item {
         anchors.fill: parent
         clip: true
 
+        /*
+            The Milky Way, behind the star points where it belongs — it is
+            made of stars too distant to resolve. A reward for the deepest
+            night hours: it only rises past nightfall's last ramp, peaks at
+            a few percent opacity, and drifts even more slowly than the
+            starfields above it.
+        */
+        Image {
+            id: milkyway
+            source: "../images/milkyway.png"
+            anchors.centerIn: parent
+            width: parent.width * 1.35
+            height: parent.height * 0.95
+            rotation: -16
+            fillMode: Image.Stretch
+            smooth: true
+            asynchronous: true
+            visible: nebula.celestials && opacity > 0.004
+            opacity: 0.07 * Math.max(0, Math.min(1, (nebula.night - 0.70) / 0.22))
+            transform: Translate { id: mwDrift }
+
+            SequentialAnimation {
+                running: true
+                paused: !nebula.animating
+                loops: Animation.Infinite
+                NumberAnimation { target: mwDrift; property: "x"; from: 0; to: nebula.unit * 0.006; duration: Math.round(105000 / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: mwDrift; property: "x"; from: nebula.unit * 0.006; to: -nebula.unit * 0.006; duration: Math.round(210000 / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: mwDrift; property: "x"; from: -nebula.unit * 0.006; to: 0; duration: Math.round(105000 / nebula.speed); easing.type: Easing.InOutSine }
+            }
+        }
+
         Image {
             id: starsFar
             source: "../images/stars-far.png"
@@ -373,6 +426,111 @@ Item {
         TwinkleLayer { id: twinkleA; source: "../images/stars-twinkle-a.png"; period: 4300; direction: 1 }
         TwinkleLayer { id: twinkleB; source: "../images/stars-twinkle-b.png"; period: 6700; direction: -1 }
         TwinkleLayer { id: twinkleC; source: "../images/stars-twinkle-c.png"; period: 8900; direction: 1 }
+
+        /*
+            The moon, in its true phase.
+
+            The sheet holds sixteen baked phases; sourceClipRect picks
+            tonight's, refreshed by the same minute tick that moves the sky.
+            It hangs in the upper right — away from the violet mass and the
+            clock — fades in as real night settles, and drifts a whisper so
+            an OLED never holds it still. A new moon is, correctly, almost
+            nothing: a dark disc you only notice if you look for it.
+        */
+        Image {
+            id: moon
+            source: "../images/moon.png"
+
+            readonly property real span: nebula.unit * 0.052
+
+            width: span
+            height: span
+            x: nebula.width * 0.815 - span / 2
+            y: nebula.height * 0.17 - span / 2
+            sourceClipRect: Qt.rect(nebula.moonFrame * 384, 0, 384, 384)
+            smooth: true
+            asynchronous: true
+            visible: nebula.celestials && opacity > 0.004
+            opacity: 0.85 * Math.max(0, Math.min(1, (nebula.night - 0.55) / 0.20))
+            transform: Translate { id: moonDrift }
+
+            SequentialAnimation {
+                running: true
+                paused: !nebula.animating
+                loops: Animation.Infinite
+                NumberAnimation { target: moonDrift; property: "x"; from: 0; to: -nebula.unit * 0.008; duration: Math.round(140000 / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: moonDrift; property: "x"; from: -nebula.unit * 0.008; to: nebula.unit * 0.008; duration: Math.round(280000 / nebula.speed); easing.type: Easing.InOutSine }
+                NumberAnimation { target: moonDrift; property: "x"; from: nebula.unit * 0.008; to: 0; duration: Math.round(140000 / nebula.speed); easing.type: Easing.InOutSine }
+            }
+        }
+
+        /*
+            The evening star. It rises through dusk, hangs in the west, and
+            sets before the night is truly deep — a twilight bump driven
+            entirely by the sky factor, no timers of its own. Deliberately
+            steady: planets do not twinkle.
+        */
+        Image {
+            id: venus
+            source: "../images/star-bright.png"
+
+            readonly property real span: nebula.unit * 0.020
+            readonly property real dusk: Math.max(0, Math.min(1, (nebula.night - 0.22) / 0.20))
+                * (1 - Math.max(0, Math.min(1, (nebula.night - 0.72) / 0.16)))
+
+            width: span
+            height: span
+            x: nebula.width * 0.735 - span / 2
+            // Setting: it slides gently down as the night deepens.
+            y: nebula.height * (0.30 + 0.24 * nebula.night) - span / 2
+            smooth: true
+            asynchronous: true
+            visible: nebula.celestials && opacity > 0.004
+            opacity: 0.9 * dusk
+        }
+
+        /*
+            The comet: the rarest thing this sky does. Once every few hours
+            the scheduler considers one, and only a dark sky gets it — a
+            long, slow crossing over a couple of minutes, tail trailing,
+            violet head running out into a cyan tail.
+        */
+        Image {
+            id: comet
+            source: "../images/comet.png"
+            width: nebula.unit * 0.30
+            height: width * 0.25
+            smooth: true
+            asynchronous: true
+            opacity: 0
+            visible: nebula.celestials && opacity > 0
+        }
+
+        ParallelAnimation {
+            id: cometFlight
+            paused: cometFlight.running && !nebula.animating
+
+            NumberAnimation { id: cometX; target: comet; property: "x"; easing.type: Easing.Linear }
+            NumberAnimation { id: cometY; target: comet; property: "y"; easing.type: Easing.Linear }
+            SequentialAnimation {
+                NumberAnimation { id: cometIn; target: comet; property: "opacity"; from: 0; to: 0.8; easing.type: Easing.InOutSine }
+                NumberAnimation { id: cometHold; target: comet; property: "opacity"; to: 0.8 }
+                NumberAnimation { id: cometOut; target: comet; property: "opacity"; to: 0; easing.type: Easing.InOutSine }
+            }
+        }
+
+        Timer {
+            id: cometClock
+            running: nebula.celestials && nebula.animating
+            repeat: true
+            interval: 7200000 + Math.round(Math.random() * 14400000)   // 2 to 6 hours
+            onTriggered: {
+                if (nebula.skyFactor(new Date()) >= 0.5) {
+                    nebula.cometNow();
+                }
+                interval = 7200000 + Math.round(Math.random() * 14400000);
+            }
+        }
 
         /*
             The aurora curtain, hidden until an event.
@@ -660,6 +818,34 @@ Item {
         auroraOut.duration = life - auroraIn.duration
             - auroraDim.duration - auroraSwell.duration;
         auroraShow.restart();
+    }
+
+    /** Fly the comet once, immediately. The scheduler's entry point, public
+        like the others so a harness can see one without waiting hours. */
+    function cometNow(): void {
+        const toRad = Math.PI / 180;
+        // Shallower and far slower than any meteor: 8-22 degrees, and the
+        // crossing takes a minute and a half to three minutes.
+        const pitch = 8 + Math.random() * 14;
+        const angle = Math.random() < 0.5 ? pitch : 180 - pitch;
+        const dist = nebula.unit * (0.45 + Math.random() * 0.25);
+        const dx = Math.cos(angle * toRad) * dist;
+        const dy = Math.sin(angle * toRad) * dist;
+        const sx = nebula.width * (0.15 + Math.random() * 0.70) - comet.width / 2 - dx / 2;
+        const sy = nebula.height * (0.10 + Math.random() * 0.35) - dy / 2;
+        const life = 90000 + Math.round(Math.random() * 90000);
+
+        comet.rotation = angle;
+        cometX.from = sx;
+        cometX.to = sx + dx;
+        cometX.duration = life;
+        cometY.from = sy;
+        cometY.to = sy + dy;
+        cometY.duration = life;
+        cometIn.duration = Math.round(life * 0.15);
+        cometHold.duration = Math.round(life * 0.55);
+        cometOut.duration = life - cometIn.duration - cometHold.duration;
+        cometFlight.restart();
     }
 
     /** Fly one satellite pass, immediately. */

@@ -27,6 +27,11 @@ transform and opacity only, fully paused whenever the desktop isn't visible.
 - **Aurora** — on the deepest night hours, once or twice an hour, a violet
   and cyan curtain rises over the stars, shimmers for a couple of minutes,
   and dissolves. Pre-rendered like everything else; still no shaders.
+- **The celestial bodies** — the moon rises after dusk showing its *real
+  phase* (sixteen baked frames, accurate to the almanac); the Milky Way
+  veils the deepest hours; the evening star hangs steady in the twilight
+  (planets don't twinkle); and once every few dark hours a comet makes a
+  slow two-minute crossing, violet head running out into a cyan tail.
 - **Clock overlay** — wide-tracked day name, date, and time, centered or
   top-centered; 12/24-hour follows the system locale, or force either.
 - **Folder gallery** — point it at a folder (JPEG/PNG/WebP/BMP/AVIF/JXL)

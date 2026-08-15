@@ -137,6 +137,20 @@ AURORA_TOP = "#7700ff"
 AURORA_BOTTOM = "#00e5ff"
 AURORA_OPACITY = 0.14  # QML peak opacity; printed in the contract below
 
+# The celestial bodies (1.6.0). The moon ships as a 16-frame phase sheet the
+# QML picks from with sourceClipRect; the rest are single sprites for the
+# Milky Way veil, the rare comet, and the evening star.
+MOON_FRAME = 384
+MOON_FRAMES = 16
+MOON_LIT = "#e9e3f7"
+MOON_DARK = "#241c3c"
+
+MW_W, MW_H = 1600, 900
+
+COMET_W, COMET_H = 1024, 256
+
+VENUS_SIZE = 128
+
 SCREENSHOT = (640, 360)
 
 # The composition is authored around the four static blobs. Violet and
@@ -390,6 +404,153 @@ def build_aurora() -> tuple[Image.Image, dict]:
 
 
 # --------------------------------------------------------------------------
+# celestial bodies
+# --------------------------------------------------------------------------
+
+
+def _smooth_noise(rng, w: int, h: int, octaves) -> np.ndarray:
+    """Band-limited noise 0..1: random grids upsampled and summed."""
+    total = np.zeros((h, w), dtype=np.float32)
+    amp = 1.0
+    for cells in octaves:
+        grid = rng.random((max(2, cells), max(2, cells * 2))).astype(np.float32)
+        layer = np.asarray(
+            Image.fromarray((grid * 255).astype(np.uint8)).resize((w, h), Image.BICUBIC),
+            dtype=np.float32,
+        ) / 255.0
+        total += layer * amp
+        amp *= 0.55
+    total -= total.min()
+    return total / max(float(total.max()), 1e-6)
+
+
+def build_moon() -> tuple[Image.Image, dict]:
+    """A 16-frame lunar phase sheet, new moon first, waxing on the right.
+
+    Proper sphere lighting: sun direction swings around the moon with the
+    phase, the terminator is feathered, and the dark side keeps a whisper of
+    presence so a crescent still reads as a full disc the way the real one
+    does against a clear sky.
+    """
+    size = MOON_FRAME
+    r = size * 0.42
+    axis = (np.arange(size, dtype=np.float32) + 0.5) - size / 2
+    u = axis.reshape(1, size) / r
+    v = axis.reshape(size, 1) / r
+    rho = np.sqrt(u * u + v * v)
+    inside = np.clip((1.0 - rho) * r / 1.5, 0.0, 1.0)
+    z = np.sqrt(np.clip(1.0 - rho * rho, 0.0, None))
+
+    lit_rgb, dark_rgb = hex_rgb(MOON_LIT), hex_rgb(MOON_DARK)
+    sheet = np.zeros((size, size * MOON_FRAMES, 4), dtype=np.uint8)
+    for i in range(MOON_FRAMES):
+        a = 2.0 * math.pi * i / MOON_FRAMES
+        d = u * math.sin(a) - z * math.cos(a)
+        lit = np.clip(d / 0.10 + 0.5, 0.0, 1.0) * (0.85 + 0.15 * z)
+        alpha = inside * np.clip(lit + 0.16, 0.0, 1.0)
+        rgb = dark_rgb.reshape(1, 1, 3) + (lit_rgb - dark_rgb).reshape(1, 1, 3) * lit[:, :, None]
+        sheet[:, i * size:(i + 1) * size, :3] = np.clip(np.rint(rgb * 255.0), 0, 255)
+        sheet[:, i * size:(i + 1) * size, 3] = np.clip(np.rint(alpha * 255.0), 0, 255)
+
+    meta = {"file": "moon.png", "frame": size, "frames": MOON_FRAMES, "opacity": 0.85}
+    return Image.fromarray(sheet, mode="RGBA"), meta
+
+
+def build_milkyway() -> tuple[Image.Image, dict]:
+    """A faint horizontal galactic band; QML tilts and drifts it.
+
+    A gaussian envelope across the band and smooth-noise structure along it,
+    with the ends dissolved so no edge can ever show. Alpha is normalised;
+    the QML opacity is a few percent on the deepest nights only.
+    """
+    rng = np.random.default_rng(SEED ^ 0x314159)
+    w, h = MW_W, MW_H
+    y = ((np.arange(h, dtype=np.float32) + 0.5) / h).reshape(h, 1)
+    x = ((np.arange(w, dtype=np.float32) + 0.5) / w).reshape(1, w)
+
+    envelope = np.exp(-((y - 0.5) / 0.16) ** 2).astype(np.float32) \
+        * (smoothstep(x / 0.18) * smoothstep((1.0 - x) / 0.18))
+
+    texture = _smooth_noise(rng, w, h, (6, 12, 24, 48)) ** 1.7
+    # A dark dust lane wandering along the middle, like the real one.
+    lane = 0.5 + 0.08 * np.sin(2.0 * math.pi * (x * 1.7 + 0.2))
+    dust = 1.0 - 0.55 * np.exp(-(((y - lane) / 0.045) ** 2)).astype(np.float32)
+
+    alpha = envelope * (0.30 + 0.70 * texture) * dust
+    alpha /= max(float(alpha.max()), 1e-6)
+
+    tint = hex_rgb("#cfc4ee")
+    out = np.empty((h, w, 4), dtype=np.uint8)
+    out[:, :, :3] = np.clip(np.rint(tint.reshape(1, 1, 3) * np.ones((h, w, 3)) * 255.0), 0, 255)
+    out[:, :, 3] = np.clip(np.rint(alpha * 255.0), 0, 255)
+
+    meta = {"file": "milkyway.png", "width": w, "height": h, "opacity": 0.07}
+    return Image.fromarray(out, mode="RGBA"), meta
+
+
+def build_comet() -> tuple[Image.Image, dict]:
+    """The comet: bright head at the right, tail dissolving to the left,
+    violet fading to cyan down its length — the NX gradient at astronomical
+    scale. Baked pointing +x, like the meteor, so rotation aims it."""
+    rng = np.random.default_rng(SEED ^ 0xC03E7)
+    w, h = COMET_W, COMET_H
+    y = ((np.arange(h, dtype=np.float32) + 0.5) / h).reshape(h, 1)
+    x = ((np.arange(w, dtype=np.float32) + 0.5) / w).reshape(1, w)
+
+    head_x, head_y = 0.86, 0.5
+    # Tail: exponential fade leftward from the head, width growing with
+    # distance, centreline bending gently upward.
+    dist = np.clip(head_x - x, 0.0, None)
+    centre = head_y - 0.22 * dist * dist
+    width = 0.035 + 0.30 * dist
+    tail = np.exp(-dist / 0.34) * np.exp(-(((y - centre) / width) ** 2))
+    tail *= 0.55 + 0.45 * _smooth_noise(rng, w, h, (3, 9, 27))
+    tail *= smoothstep(x[0] / 0.06)
+
+    head = np.exp(-(((x - head_x) / 0.018) ** 2 + ((y - head_y) / 0.07) ** 2)) * 1.6
+    glow = np.exp(-(((x - head_x) / 0.06) ** 2 + ((y - head_y) / 0.22) ** 2)) * 0.5
+
+    alpha = np.clip(tail * 0.8 + head + glow, 0.0, None).astype(np.float32)
+    alpha /= max(float(alpha.max()), 1e-6)
+
+    # Violet at the head through cyan down the tail, white-hot at the core.
+    t = np.clip(dist / 0.6, 0.0, 1.0)
+    violet, cyan, white = hex_rgb("#a06bff"), hex_rgb("#00e5ff"), hex_rgb("#f6f2ff")
+    rgb = violet.reshape(1, 1, 3) + (cyan - violet).reshape(1, 1, 3) * t[:, :, None]
+    core = np.clip(head, 0.0, 1.0)[:, :, None]
+    rgb = rgb * (1.0 - core) + white.reshape(1, 1, 3) * core
+
+    out = np.empty((h, w, 4), dtype=np.uint8)
+    out[:, :, :3] = np.clip(np.rint(rgb * 255.0), 0, 255)
+    out[:, :, 3] = np.clip(np.rint(alpha * 255.0), 0, 255)
+
+    meta = {"file": "comet.png", "width": w, "height": h, "opacity": 0.8}
+    return Image.fromarray(out, mode="RGBA"), meta
+
+
+def build_venus() -> tuple[Image.Image, dict]:
+    """The evening star: a small steady glow with the faintest diffraction
+    cross. Steady on purpose — planets do not twinkle."""
+    s = VENUS_SIZE
+    axis = ((np.arange(s, dtype=np.float32) + 0.5) - s / 2) / (s / 2)
+    x = axis.reshape(1, s)
+    y = axis.reshape(s, 1)
+    r2 = x * x + y * y
+    core = np.exp(-r2 / 0.018)
+    halo = np.exp(-r2 / 0.28) * 0.25
+    spikes = (np.exp(-(x / 0.03) ** 2) + np.exp(-(y / 0.03) ** 2)) * np.exp(-r2 / 0.5) * 0.18
+    alpha = np.clip(core + halo + spikes, 0.0, 1.0)
+
+    tint = hex_rgb("#f6f2ff")
+    out = np.empty((s, s, 4), dtype=np.uint8)
+    out[:, :, :3] = np.clip(np.rint(tint.reshape(1, 1, 3) * np.ones((s, s, 3)) * 255.0), 0, 255)
+    out[:, :, 3] = np.clip(np.rint(alpha * 255.0), 0, 255)
+
+    meta = {"file": "star-bright.png", "size": s, "opacity": 0.9}
+    return Image.fromarray(out, mode="RGBA"), meta
+
+
+# --------------------------------------------------------------------------
 # vignette + grain
 # --------------------------------------------------------------------------
 
@@ -582,6 +743,18 @@ def build(root: str) -> None:
         f"opacity={entry['opacity']:.2f} (event peak)"
     )
 
+    for key, builder in (
+        ("moon", build_moon),
+        ("milkyway", build_milkyway),
+        ("comet", build_comet),
+        ("venus", build_venus),
+    ):
+        sprite, entry = builder()
+        size = save_png(sprite, os.path.join(root, IMAGES_DIR, entry["file"]))
+        total += size
+        meta[key] = entry
+        print(f"  {entry['file']:<20} {sprite.width}x{sprite.height}  {human(size):>9}")
+
     size = save_png(build_vignette(), os.path.join(root, IMAGES_DIR, "vignette.png"))
     total += size
     print(f"  {'vignette.png':<20} {VIGNETTE_W}x{VIGNETTE_H}  {human(size):>9}")
@@ -628,6 +801,14 @@ def check(root: str) -> int:
     ]
     if "aurora" in meta:
         expected.append((meta["aurora"]["file"], (AURORA_W, AURORA_H)))
+    if "moon" in meta:
+        expected.append((meta["moon"]["file"], (MOON_FRAME * MOON_FRAMES, MOON_FRAME)))
+    if "milkyway" in meta:
+        expected.append((meta["milkyway"]["file"], (MW_W, MW_H)))
+    if "comet" in meta:
+        expected.append((meta["comet"]["file"], (COMET_W, COMET_H)))
+    if "venus" in meta:
+        expected.append((meta["venus"]["file"], (VENUS_SIZE, VENUS_SIZE)))
 
     for name, size in expected:
         path = os.path.join(root, IMAGES_DIR, name)

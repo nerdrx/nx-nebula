@@ -41,6 +41,10 @@
       <label>An aurora on the deepest nights, once or twice an hour</label>
       <default>true</default>
     </entry>
+    <entry name="Celestials" type="bool">
+      <label>The moon in its true phase, the Milky Way, the evening star, a rare comet</label>
+      <default>true</default>
+    </entry>
     <entry name="BurnInGuard" type="bool">
       <label>Wander static elements a few pixels to spare OLED panels</label>
       <default>true</default>
