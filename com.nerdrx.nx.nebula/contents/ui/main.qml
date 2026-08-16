@@ -77,6 +77,30 @@ WallpaperItem {
         }
     }
 
+    /*
+        The pointer, if plasmashell shares it. No buttons are accepted, so
+        desktop clicks pass straight through; if hover never arrives, every
+        pointer effect simply rests at centre. Heavily smoothed — nothing
+        here should ever feel like it is chasing the mouse.
+    */
+    property real px: 0.5
+    property real py: 0.5
+
+    Behavior on px { NumberAnimation { duration: 1100; easing.type: Easing.OutQuad } }
+    Behavior on py { NumberAnimation { duration: 1100; easing.type: Easing.OutQuad } }
+
+    MouseArea {
+        anchors.fill: parent
+        hoverEnabled: root.live && (root.configuration.PointerParallax
+            || root.configuration.PointerGlow || root.configuration.PointerTile)
+        acceptedButtons: Qt.NoButton
+        propagateComposedEvents: true
+        onPositionChanged: mouse => {
+            root.px = mouse.x / Math.max(1, width);
+            root.py = mouse.y / Math.max(1, height);
+        }
+    }
+
     NebulaLayer {
         id: nebula
         anchors.fill: parent
@@ -92,6 +116,9 @@ WallpaperItem {
         southern: root.configuration.Southern
         realSky: root.configuration.RealSky
         clarity: weather.clarity
+        pointerX: root.px
+        pointerY: root.py
+        parallax: root.live && root.configuration.PointerParallax
         kp: weather.kp
         lightning: weather.flash
 
@@ -105,6 +132,21 @@ WallpaperItem {
                 }
             }
         }
+    }
+
+    // The sky noticing you: a soft violet glow that arrives a second late
+    // wherever the pointer rests.
+    Image {
+        source: "../images/star-bright.png"
+        readonly property real span: Math.sqrt(root.width * root.height) * 0.45
+        width: span
+        height: span
+        x: root.px * root.width - span / 2
+        y: root.py * root.height - span / 2
+        opacity: root.live && root.configuration.PointerGlow ? 0.05 : 0
+        smooth: true
+        asynchronous: true
+        visible: opacity > 0.004
     }
 
     WeatherLayer {
@@ -144,6 +186,10 @@ WallpaperItem {
         snowCover: weather.snowDepth
         sweepOn: root.configuration.GlassSweep
         bloomBreathe: root.configuration.BloomBreathe
+        pointerX: root.px
+        pointerY: root.py
+        parallax: root.live && root.configuration.PointerParallax
+        tileAttention: root.live && root.configuration.PointerTile
         glitchSlices: root.configuration.Glitch && root.configuration.GlitchSlices
         glitchArrival: root.configuration.Glitch && root.configuration.GlitchTransition
     }

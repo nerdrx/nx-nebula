@@ -51,6 +51,10 @@ Item {
     property bool bloomBreathe: true
     property bool glitchSlices: false
     property bool glitchArrival: false
+    property real pointerX: 0.5
+    property real pointerY: 0.5
+    property bool parallax: false
+    property bool tileAttention: false
 
     /** Burst every card at once — the signal-loss moment. */
     function glitchAll(): void {
@@ -560,8 +564,8 @@ Item {
         property real wx: 0
         property real wy: 0
         transform: Translate {
-            x: cardRow.wx
-            y: cardRow.wy
+            x: cardRow.wx + (gallery.parallax ? -(gallery.pointerX - 0.5) * 30 : 0)
+            y: cardRow.wy + (gallery.parallax ? -(gallery.pointerY - 0.5) * 18 : 0)
         }
 
         SequentialAnimation {
@@ -590,6 +594,12 @@ Item {
             the motion under reduced motion.
         */
         component EasedCard: GalleryCard {
+            readonly property bool hovered: gallery.tileAttention && gallery.framed
+                && gallery.pointerX * gallery.width >= x + cardRow.x
+                && gallery.pointerX * gallery.width < x + cardRow.x + width
+                && gallery.pointerY * gallery.height >= y + cardRow.y
+                && gallery.pointerY * gallery.height < y + cardRow.y + height
+            attention: hovered ? 1 : 0
             Behavior on width {
                 enabled: gallery.live
                 NumberAnimation { duration: 700; easing.type: Easing.InOutCubic }

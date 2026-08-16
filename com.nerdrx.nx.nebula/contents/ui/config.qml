@@ -109,6 +109,13 @@ Kirigami.FormLayout {
     property alias cfg_GlitchSignal: gSignal.checked
     property bool cfg_GlitchSignalDefault: true
 
+    property alias cfg_PointerParallax: pParallax.checked
+    property bool cfg_PointerParallaxDefault: true
+    property alias cfg_PointerGlow: pGlow.checked
+    property bool cfg_PointerGlowDefault: true
+    property alias cfg_PointerTile: pTile.checked
+    property bool cfg_PointerTileDefault: true
+
     property alias cfg_GlassSweep: glassSweep.checked
     property bool cfg_GlassSweepDefault: true
 
@@ -230,6 +237,15 @@ Kirigami.FormLayout {
         enabled: animate.checked
         text: i18nd(root.dom, "The real stars — the actual sky, wheeling at sidereal rate")
     }
+
+    Kirigami.Separator {
+        Kirigami.FormData.label: i18nd(root.dom, "Pointer")
+        Kirigami.FormData.isSection: true
+    }
+
+    QQC2.CheckBox { id: pParallax; Kirigami.FormData.label: i18nd(root.dom, "Pointer:"); text: i18nd(root.dom, "Parallax — the wall becomes a window with depth") }
+    QQC2.CheckBox { id: pGlow; text: i18nd(root.dom, "A glow drifts to where the pointer rests") }
+    QQC2.CheckBox { id: pTile; text: i18nd(root.dom, "The tile under the pointer wakes up") }
 
     // ---------------------------------------------------------------- glitch
 

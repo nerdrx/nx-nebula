@@ -50,6 +50,22 @@ Item {
     /** The halo breathes. */
     property bool bloomBreathe: true
 
+    /** 1 while the pointer rests on this tile: a slight lift, a brighter
+        glow, one sheen sweep on arrival. */
+    property real attention: 0
+
+    scale: 1 + 0.01 * attention
+
+    Behavior on attention {
+        NumberAnimation { duration: 900; easing.type: Easing.InOutQuad }
+    }
+
+    onAttentionChanged: {
+        if (attention > 0.5 && card.sweepOn && card.live) {
+            sweepAnim.restart();
+        }
+    }
+
     /** Glitch: random slice-displacement bursts, and one on each arrival. */
     property bool glitchSlices: false
     property bool glitchArrival: false
@@ -400,6 +416,7 @@ Item {
         onLoaded: {
             item.tint = Qt.binding(() => card.glowColor);
             item.breathe = Qt.binding(() => card.bloomBreathe && card.live);
+            item.swellBoost = Qt.binding(() => 0.10 * card.attention);
         }
     }
 
@@ -587,6 +604,7 @@ Item {
             item.cornerRadius = Qt.binding(() => card.frameRadius);
             item.tint = Qt.binding(() => card.glowColor);
             item.breathe = Qt.binding(() => card.bloomBreathe && card.live);
+            item.swellBoost = Qt.binding(() => 0.10 * card.attention);
         }
     }
 }

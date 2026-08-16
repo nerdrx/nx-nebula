@@ -109,6 +109,18 @@
       <label>A half-second signal loss every half hour or so</label>
       <default>true</default>
     </entry>
+    <entry name="PointerParallax" type="bool">
+      <label>The layers lean against the pointer: a window with depth</label>
+      <default>true</default>
+    </entry>
+    <entry name="PointerGlow" type="bool">
+      <label>A soft glow drifts to wherever the pointer rests</label>
+      <default>true</default>
+    </entry>
+    <entry name="PointerTile" type="bool">
+      <label>The photo tile under the pointer lifts and brightens</label>
+      <default>true</default>
+    </entry>
     <entry name="BurnInGuard" type="bool">
       <label>Wander static elements a few pixels to spare OLED panels</label>
       <default>true</default>

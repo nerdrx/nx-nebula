@@ -74,6 +74,11 @@ Item {
         events every few minutes, brighter and earlier in the evening. */
     property real kp: 0
 
+    /** Pointer 0..1, pre-smoothed by main.qml; 0.5 = rest. */
+    property real pointerX: 0.5
+    property real pointerY: 0.5
+    property bool parallax: false
+
     /** Lightning brightness from the weather layer; a strike lights the
         nebula bodies the way it lights real clouds. */
     property real lightning: 0
@@ -463,6 +468,13 @@ Item {
     Item {
         anchors.fill: parent
         clip: true
+
+        // The star plane leans gently against the pointer: the middle
+        // distance of the diorama.
+        transform: Translate {
+            x: nebula.parallax ? -(nebula.pointerX - 0.5) * nebula.unit * 0.016 : 0
+            y: nebula.parallax ? -(nebula.pointerY - 0.5) * nebula.unit * 0.010 : 0
+        }
 
         /*
             The Milky Way, behind the star points where it belongs — it is

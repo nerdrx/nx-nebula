@@ -49,6 +49,7 @@ Item {
     /** Swells the glow ±0.05 on a slow period when on. */
     property bool breathe: false
     property real swell: 0
+    property real swellBoost: 0
 
     SequentialAnimation {
         running: true
@@ -66,6 +67,6 @@ Item {
         blurEnabled: true
         blur: 1.0
         blurMax: 40
-        opacity: 0.34 + halo.swell
+        opacity: 0.34 + halo.swell + halo.swellBoost
     }
 }
