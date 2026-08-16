@@ -47,12 +47,12 @@ systemctl --user restart nx-cursor.service plasma-plasmashell.service
    old QML — restart it. Also confirm a Pointer toggle is actually on in the
    wallpaper config; all three off disables the whole chain including the
    self-heal.
-5. **Self-heal specifically:** it only fires when positions arrive *without*
-   `v_2` — if the helper is dead entirely, nothing flows and nothing heals.
-   That case needs the service running at least once (step 1). Suspected
-   remaining bug as of 1.14.1: FolderListModel may deliver `v_2` in its
-   first snapshot and never re-evaluate, so verify with the steps above and
-   treat the marker logic as unproven.
+5. **Self-heal specifically (1.14.2+):** the helper generation rides in the
+   position prefix itself (`p2_<x>_<y>`), so every rename proves both the
+   position and the version — no separate marker to go stale. Old-prefix
+   renames with no current-prefix file trigger one service restart. If the
+   helper is dead entirely, nothing flows and nothing heals; that case is
+   step 1.
 
 ## Still to build
 
@@ -62,8 +62,5 @@ systemctl --user restart nx-cursor.service plasma-plasmashell.service
   (install() completion), a `postUpdate` field in `registry/overrides.json`
   for nx-nebula (`systemctl --user restart nx-cursor plasma-plasmashell`),
   a schema note in SPEC.md, and a test beside the engine's existing ones.
-- **Verify the v_2 self-heal live** (see 5 above) — if FolderListModel
-  snapshots betray it, switch the marker check to the helper renaming the
-  position file to `p2_<x>_<y>` (version folded into the prefix the watcher
-  already tracks) and drop the separate marker file entirely. That variant
-  cannot go stale.
+- ~~Verify the v_2 self-heal~~ — replaced in 1.14.2 by the prefix-versioned
+  design described in 5; the separate marker is gone.

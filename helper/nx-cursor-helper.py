@@ -7,9 +7,14 @@ from gi.repository import Gio, GLib
 
 base = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "nx-cursor.d")
 os.makedirs(base, exist_ok=True)
-# Version marker: the wallpaper restarts this service when it sees a
-# marker older than it requires, so hub updates self-heal.
-open(os.path.join(base, "v_2"), "w").close()
+# Sweep older generations' droppings so the watcher only ever sees
+# one coherent story in this directory.
+for old in os.listdir(base):
+    if old.startswith(("p_", "v_")):
+        try:
+            os.remove(os.path.join(base, old))
+        except OSError:
+            pass
 current = None
 XML = ("<node><interface name='com.nerdrx.nxcursor'>"
        "<method name='set'><arg type='i' name='x' direction='in'/>"
@@ -23,7 +28,10 @@ def on_call(conn, sender, opath, iface, method, params, invocation):
         x, y = params.unpack()
         # The position IS the file name: a rename is one inotify event the
         # wallpaper's folder model hears instantly — no polling, no reads.
-        name = os.path.join(base, f"p_{x}_{y}")
+        # The version rides in the prefix: every rename proves both the
+        # position AND which helper generation produced it, so the
+        # wallpaper's staleness check can never miss an update.
+        name = os.path.join(base, f"p2_{x}_{y}")
         if current is None:
             open(name, "w").close()
         else:

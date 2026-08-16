@@ -154,7 +154,7 @@ WallpaperItem {
         id: cursorWatch
         folder: root.pointerWanted && runtimeDir.dir.length > 0
             ? "file://" + runtimeDir.dir + "/nx-cursor.d" : ""
-        nameFilters: ["p_*", "v_*"]
+        nameFilters: ["p*"]
         showDirs: false
         onCountChanged: root.readCursor()
         onFolderChanged: root.readCursor()
@@ -164,18 +164,19 @@ WallpaperItem {
 
     function readCursor(): void {
         let pos = "";
-        let marker = false;
+        let stale = false;
         for (let i = 0; i < cursorWatch.count; ++i) {
             const n = String(cursorWatch.get(i, "fileName"));
-            if (n === "v_2") {
-                marker = true;
-            } else if (n.indexOf("p_") === 0) {
+            if (n.indexOf("p2_") === 0) {
                 pos = n;
+            } else if (n.indexOf("p_") === 0) {
+                stale = true;   // an older helper generation is running
             }
         }
-        // An old helper is running (hub updated the file on disk but not
-        // the process): restart it once. Files-only self-healing.
-        if (pos.length > 0 && !marker && !root.healed) {
+        // Hub updates swap the file on disk but not the running process;
+        // a stale-prefix rename is the running process telling on itself.
+        // Restart it once — files-only self-healing, no hooks required.
+        if (stale && pos.length === 0 && !root.healed) {
             root.healed = true;
             bootstrap.connectSource("systemctl --user restart nx-cursor.service");
         }
