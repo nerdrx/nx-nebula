@@ -111,8 +111,8 @@ Kirigami.FormLayout {
 
     property alias cfg_PointerParallax: pParallax.checked
     property bool cfg_PointerParallaxDefault: true
-    property alias cfg_PointerGlow: pGlow.checked
-    property bool cfg_PointerGlowDefault: true
+    property bool cfg_PointerGlow: false
+    property bool cfg_PointerGlowDefault: false
     property alias cfg_PointerTile: pTile.checked
     property bool cfg_PointerTileDefault: true
 
@@ -244,7 +244,6 @@ Kirigami.FormLayout {
     }
 
     QQC2.CheckBox { id: pParallax; Kirigami.FormData.label: i18nd(root.dom, "Pointer:"); text: i18nd(root.dom, "Parallax — the wall becomes a window with depth") }
-    QQC2.CheckBox { id: pGlow; text: i18nd(root.dom, "A glow drifts to where the pointer rests") }
     QQC2.CheckBox { id: pTile; text: i18nd(root.dom, "The tile under the pointer wakes up") }
 
     // ---------------------------------------------------------------- glitch
