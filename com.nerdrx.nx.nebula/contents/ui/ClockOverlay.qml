@@ -112,8 +112,10 @@ Item {
     // Everything visible lives on this sheet so the burn-in wander moves the
     // scrim and the type as one. The overlay is the brightest static thing
     // an OLED desktop shows all day; a Lissajous of a few pixels over
-    // minutes spreads that load. Offsets are rounded to whole pixels — the
-    // type must never land between texels and soften.
+    // minutes spreads that load. The offsets are deliberately *not* rounded:
+    // Qt draws scalable text from distance fields, crisp at any fractional
+    // position, and a sub-pixel glide is invisible where a whole-pixel step
+    // reads as a twitch.
     Item {
         id: sheet
         anchors.fill: parent
@@ -121,8 +123,8 @@ Item {
         property real wx: 0
         property real wy: 0
         transform: Translate {
-            x: Math.round(sheet.wx)
-            y: Math.round(sheet.wy)
+            x: sheet.wx
+            y: sheet.wy
         }
 
         SequentialAnimation {

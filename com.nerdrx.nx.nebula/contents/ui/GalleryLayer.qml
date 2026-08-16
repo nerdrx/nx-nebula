@@ -540,13 +540,14 @@ Item {
 
         // OLED care. A fitted photo row is a bright static shape on a dark
         // field — worst case for burn-in — so the whole row wanders a
-        // Lissajous of a few pixels over minutes. Rounded to whole pixels:
-        // the drift must never soften the pictures, only move them.
+        // Lissajous of a few pixels over minutes. Unrounded on purpose: a
+        // photo resampled half a texel over is indistinguishable, while a
+        // whole-pixel step is a visible twitch.
         property real wx: 0
         property real wy: 0
         transform: Translate {
-            x: Math.round(cardRow.wx)
-            y: Math.round(cardRow.wy)
+            x: cardRow.wx
+            y: cardRow.wy
         }
 
         SequentialAnimation {
@@ -566,7 +567,26 @@ Item {
             NumberAnimation { target: cardRow; property: "wy"; from: 4; to: 0; duration: 82000; easing.type: Easing.InOutSine }
         }
 
-        GalleryCard {
+        /*
+            A new photo brings a new aspect, and with it a new width for its
+            card and new positions for its neighbours. Snapping there reads
+            as the whole wall flinching, so geometry eases instead — the Row
+            re-lays continuously while the widths glide, and the reflow
+            rides the same beat as the crossfade. Disabled with the rest of
+            the motion under reduced motion.
+        */
+        component EasedCard: GalleryCard {
+            Behavior on width {
+                enabled: gallery.live
+                NumberAnimation { duration: 700; easing.type: Easing.InOutCubic }
+            }
+            Behavior on height {
+                enabled: gallery.live
+                NumberAnimation { duration: 700; easing.type: Easing.InOutCubic }
+            }
+        }
+
+        EasedCard {
             id: card0
             visible: true
             width: gallery.framed ? gallery.cardH * aspect : gallery.width
@@ -581,7 +601,7 @@ Item {
             onSourceFailed: gallery.skipFailed(0)
         }
 
-        GalleryCard {
+        EasedCard {
             id: card1
             visible: gallery.activeSlots > 1
             width: gallery.cardH * aspect
@@ -594,7 +614,7 @@ Item {
             onSourceFailed: gallery.skipFailed(1)
         }
 
-        GalleryCard {
+        EasedCard {
             id: card2
             visible: gallery.activeSlots > 2
             width: gallery.cardH * aspect
