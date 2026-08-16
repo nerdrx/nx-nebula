@@ -602,11 +602,11 @@ Item {
             attention: hovered ? 1 : 0
             Behavior on width {
                 enabled: gallery.live
-                NumberAnimation { duration: 380; easing.type: Easing.InOutCubic }
+                NumberAnimation { duration: 700; easing.type: Easing.InOutCubic }
             }
             Behavior on height {
                 enabled: gallery.live
-                NumberAnimation { duration: 380; easing.type: Easing.InOutCubic }
+                NumberAnimation { duration: 700; easing.type: Easing.InOutCubic }
             }
         }
 

@@ -60,19 +60,19 @@ WallpaperItem {
     SequentialAnimation {
         id: intro
         ParallelAnimation {
-            NumberAnimation { target: nebula; property: "opacity"; from: 0; to: 1; duration: 800; easing.type: Easing.OutQuad }
+            NumberAnimation { target: nebula; property: "opacity"; from: 0; to: 1; duration: 1500; easing.type: Easing.OutQuad }
             SequentialAnimation {
-                PauseAnimation { duration: 180 }
+                PauseAnimation { duration: 350 }
                 ParallelAnimation {
-                    NumberAnimation { target: gallery; property: "opacity"; from: 0; to: 1; duration: 600; easing.type: Easing.OutCubic }
-                    NumberAnimation { target: gallery; property: "introY"; from: 26; to: 0; duration: 700; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: gallery; property: "opacity"; from: 0; to: 1; duration: 1100; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: gallery; property: "introY"; from: 26; to: 0; duration: 1300; easing.type: Easing.OutCubic }
                 }
             }
             SequentialAnimation {
-                PauseAnimation { duration: 340 }
+                PauseAnimation { duration: 650 }
                 ParallelAnimation {
-                    NumberAnimation { target: clock; property: "opacity"; from: 0; to: 1; duration: 650; easing.type: Easing.OutQuad }
-                    NumberAnimation { target: clock; property: "trackIn"; from: 1.8; to: 1; duration: 850; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: clock; property: "opacity"; from: 0; to: 1; duration: 1200; easing.type: Easing.OutQuad }
+                    NumberAnimation { target: clock; property: "trackIn"; from: 1.8; to: 1; duration: 1600; easing.type: Easing.OutCubic }
                 }
             }
         }
