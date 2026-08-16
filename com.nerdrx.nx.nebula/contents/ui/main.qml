@@ -118,7 +118,7 @@ WallpaperItem {
             bootstrap.connectSource(
                 "kwriteconfig6 --file kwinrc --group Plugins --key nx-cursorEnabled true; "
                 + "qdbus6 org.kde.KWin /KWin reconfigure; "
-                + "systemctl --user start nx-cursor.service 2>/dev/null || "
+                + "systemctl --user restart nx-cursor.service 2>/dev/null || "
                 + "systemd-run --user --unit=nx-cursor --collect \"$HOME/.local/bin/nx-cursor-helper.py\"");
         }
     }
