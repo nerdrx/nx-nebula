@@ -7,6 +7,9 @@ from gi.repository import Gio, GLib
 
 base = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "nx-cursor.d")
 os.makedirs(base, exist_ok=True)
+# Version marker: the wallpaper restarts this service when it sees a
+# marker older than it requires, so hub updates self-heal.
+open(os.path.join(base, "v_2"), "w").close()
 current = None
 XML = ("<node><interface name='com.nerdrx.nxcursor'>"
        "<method name='set'><arg type='i' name='x' direction='in'/>"

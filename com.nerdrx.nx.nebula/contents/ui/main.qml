@@ -154,17 +154,32 @@ WallpaperItem {
         id: cursorWatch
         folder: root.pointerWanted && runtimeDir.dir.length > 0
             ? "file://" + runtimeDir.dir + "/nx-cursor.d" : ""
-        nameFilters: ["p_*"]
+        nameFilters: ["p_*", "v_*"]
         showDirs: false
         onCountChanged: root.readCursor()
         onFolderChanged: root.readCursor()
     }
 
+    property bool healed: false
+
     function readCursor(): void {
-        if (cursorWatch.count < 1) {
-            return;
+        let pos = "";
+        let marker = false;
+        for (let i = 0; i < cursorWatch.count; ++i) {
+            const n = String(cursorWatch.get(i, "fileName"));
+            if (n === "v_2") {
+                marker = true;
+            } else if (n.indexOf("p_") === 0) {
+                pos = n;
+            }
         }
-        const parts = String(cursorWatch.get(0, "fileName")).split("_");
+        // An old helper is running (hub updated the file on disk but not
+        // the process): restart it once. Files-only self-healing.
+        if (pos.length > 0 && !marker && !root.healed) {
+            root.healed = true;
+            bootstrap.connectSource("systemctl --user restart nx-cursor.service");
+        }
+        const parts = pos.split("_");
         if (parts.length !== 3) {
             return;
         }
