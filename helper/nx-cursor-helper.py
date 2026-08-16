@@ -5,7 +5,9 @@ Writes are atomic (rename) so the reader never sees a torn line."""
 import os
 from gi.repository import Gio, GLib
 
-path = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "nx-cursor")
+base = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "nx-cursor.d")
+os.makedirs(base, exist_ok=True)
+current = None
 XML = ("<node><interface name='com.nerdrx.nxcursor'>"
        "<method name='set'><arg type='i' name='x' direction='in'/>"
        "<arg type='i' name='y' direction='in'/></method>"
@@ -13,12 +15,20 @@ XML = ("<node><interface name='com.nerdrx.nxcursor'>"
 
 
 def on_call(conn, sender, opath, iface, method, params, invocation):
+    global current
     if method == "set":
         x, y = params.unpack()
-        tmp = path + ".tmp"
-        with open(tmp, "w") as fh:
-            fh.write(f"{x} {y}\n")
-        os.replace(tmp, path)
+        # The position IS the file name: a rename is one inotify event the
+        # wallpaper's folder model hears instantly — no polling, no reads.
+        name = os.path.join(base, f"p_{x}_{y}")
+        if current is None:
+            open(name, "w").close()
+        else:
+            try:
+                os.replace(current, name)
+            except OSError:
+                open(name, "w").close()
+        current = name
         invocation.return_value(None)
 
 

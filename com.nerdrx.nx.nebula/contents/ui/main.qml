@@ -22,6 +22,7 @@ import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.plasmoid
 import org.kde.plasma.plasma5support as P5Support
+import Qt.labs.folderlistmodel
 
 WallpaperItem {
     id: root
@@ -110,7 +111,7 @@ WallpaperItem {
     property bool bridgeKicked: false
 
     Timer {
-        running: cursorPoll.interval > 0 && !root.bridgeSeen && !root.bridgeKicked
+        running: root.pointerWanted && !root.bridgeSeen && !root.bridgeKicked
         interval: 4000
         onTriggered: {
             root.bridgeKicked = true;
@@ -127,24 +128,50 @@ WallpaperItem {
         engine: "executable"
     }
 
+    readonly property bool pointerWanted: root.live && (root.configuration.PointerParallax
+        || root.configuration.PointerGlow || root.configuration.PointerTile)
+
+    // One spawn ever: where is the runtime dir?
     P5Support.DataSource {
-        id: cursorPoll
+        id: runtimeDir
         engine: "executable"
-        interval: root.live && (root.configuration.PointerParallax
-            || root.configuration.PointerGlow || root.configuration.PointerTile) ? 33 : 0
-        connectedSources: ["cat \"${XDG_RUNTIME_DIR:-/tmp}/nx-cursor\" 2>/dev/null"]
+        connectedSources: root.pointerWanted ? ["echo \"${XDG_RUNTIME_DIR:-/tmp}\""] : []
+        property string dir: ""
         onNewData: (source, data) => {
-            const parts = String(data.stdout || "").trim().split(" ");
-            if (parts.length !== 2) {
-                return;
-            }
-            root.bridgeSeen = true;
-            const win = root.Window.window;
-            const gx = Number(parts[0]) - (win ? win.x : 0);
-            const gy = Number(parts[1]) - (win ? win.y : 0);
-            root.px = Math.max(0, Math.min(1, gx / Math.max(1, root.width)));
-            root.py = Math.max(0, Math.min(1, gy / Math.max(1, root.height)));
+            runtimeDir.dir = String(data.stdout || "").trim();
+            runtimeDir.disconnectSource(source);
         }
+    }
+
+    /*
+        The push path: the helper renames one file inside nx-cursor.d so
+        that the file NAME carries the position. This folder model hears
+        the rename through inotify the moment it happens — no polling, no
+        process spawns, no reads. The 120ms Behavior above interpolates
+        between pushes at the display's own frame rate.
+    */
+    FolderListModel {
+        id: cursorWatch
+        folder: root.pointerWanted && runtimeDir.dir.length > 0
+            ? "file://" + runtimeDir.dir + "/nx-cursor.d" : ""
+        nameFilters: ["p_*"]
+        showDirs: false
+        onCountChanged: root.readCursor()
+        onFolderChanged: root.readCursor()
+    }
+
+    function readCursor(): void {
+        if (cursorWatch.count < 1) {
+            return;
+        }
+        const parts = String(cursorWatch.get(0, "fileName")).split("_");
+        if (parts.length !== 3) {
+            return;
+        }
+        root.bridgeSeen = true;
+        const win = root.Window.window;
+        root.px = Math.max(0, Math.min(1, (Number(parts[1]) - (win ? win.x : 0)) / Math.max(1, root.width)));
+        root.py = Math.max(0, Math.min(1, (Number(parts[2]) - (win ? win.y : 0)) / Math.max(1, root.height)));
     }
 
     NebulaLayer {
