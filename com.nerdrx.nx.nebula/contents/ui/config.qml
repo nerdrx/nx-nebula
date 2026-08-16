@@ -98,6 +98,17 @@ Kirigami.FormLayout {
     property alias cfg_BurnInGuard: burnInGuard.checked
     property bool cfg_BurnInGuardDefault: true
 
+    property alias cfg_Glitch: glitch.checked
+    property bool cfg_GlitchDefault: false
+    property alias cfg_GlitchSlices: gSlices.checked
+    property bool cfg_GlitchSlicesDefault: true
+    property alias cfg_GlitchTransition: gTrans.checked
+    property bool cfg_GlitchTransitionDefault: true
+    property alias cfg_GlitchClock: gClock.checked
+    property bool cfg_GlitchClockDefault: true
+    property alias cfg_GlitchSignal: gSignal.checked
+    property bool cfg_GlitchSignalDefault: true
+
     property alias cfg_GlassSweep: glassSweep.checked
     property bool cfg_GlassSweepDefault: true
 
@@ -219,6 +230,24 @@ Kirigami.FormLayout {
         enabled: animate.checked
         text: i18nd(root.dom, "The real stars — the actual sky, wheeling at sidereal rate")
     }
+
+    // ---------------------------------------------------------------- glitch
+
+    Kirigami.Separator {
+        Kirigami.FormData.label: i18nd(root.dom, "Glitch")
+        Kirigami.FormData.isSection: true
+    }
+
+    QQC2.CheckBox {
+        id: glitch
+        Kirigami.FormData.label: i18nd(root.dom, "Glitch:")
+        text: i18nd(root.dom, "The glitch kit — a deliberate break from the calm")
+    }
+
+    QQC2.CheckBox { id: gSlices; enabled: glitch.checked; text: i18nd(root.dom, "Slice bursts on the photo tiles") }
+    QQC2.CheckBox { id: gTrans; enabled: glitch.checked; text: i18nd(root.dom, "A burst as each new photo arrives") }
+    QQC2.CheckBox { id: gClock; enabled: glitch.checked; text: i18nd(root.dom, "Chromatic ghosts and minute scramble on the clock") }
+    QQC2.CheckBox { id: gSignal; enabled: glitch.checked; text: i18nd(root.dom, "Signal loss, every half hour or so") }
 
     // --------------------------------------------------------------- weather
 

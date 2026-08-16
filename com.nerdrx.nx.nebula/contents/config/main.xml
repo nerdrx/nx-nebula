@@ -89,6 +89,26 @@
       <label>Minute dissolves and an hourly pulse along the divider</label>
       <default>true</default>
     </entry>
+    <entry name="Glitch" type="bool">
+      <label>Master switch for the glitch kit</label>
+      <default>false</default>
+    </entry>
+    <entry name="GlitchSlices" type="bool">
+      <label>Random slice-displacement bursts on the tiles</label>
+      <default>true</default>
+    </entry>
+    <entry name="GlitchTransition" type="bool">
+      <label>A burst as each new photo arrives</label>
+      <default>true</default>
+    </entry>
+    <entry name="GlitchClock" type="bool">
+      <label>Chromatic ghosts and the minute scramble on the clock</label>
+      <default>true</default>
+    </entry>
+    <entry name="GlitchSignal" type="bool">
+      <label>A half-second signal loss every half hour or so</label>
+      <default>true</default>
+    </entry>
     <entry name="BurnInGuard" type="bool">
       <label>Wander static elements a few pixels to spare OLED panels</label>
       <default>true</default>

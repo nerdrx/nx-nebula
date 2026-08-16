@@ -144,6 +144,47 @@ WallpaperItem {
         snowCover: weather.snowDepth
         sweepOn: root.configuration.GlassSweep
         bloomBreathe: root.configuration.BloomBreathe
+        glitchSlices: root.configuration.Glitch && root.configuration.GlitchSlices
+        glitchArrival: root.configuration.Glitch && root.configuration.GlitchTransition
+    }
+
+    /*
+        Signal loss: every half hour or so the wall drops carrier for half a
+        second — static flashes up, every photo tile tears at once — and
+        then everything is exactly as it was. Master-gated like the rest of
+        the glitch kit, and never under reduced motion.
+    */
+    Image {
+        id: static_
+        anchors.fill: parent
+        source: "../images/grain.png"
+        fillMode: Image.Tile
+        smooth: false
+        opacity: 0
+        visible: opacity > 0.01
+    }
+
+    SequentialAnimation {
+        id: signalLoss
+        NumberAnimation { target: static_; property: "opacity"; from: 0; to: 0.45; duration: 40 }
+        PauseAnimation { duration: 120 }
+        NumberAnimation { target: static_; property: "opacity"; to: 0.1; duration: 40 }
+        PauseAnimation { duration: 80 }
+        NumberAnimation { target: static_; property: "opacity"; to: 0.35; duration: 40 }
+        PauseAnimation { duration: 100 }
+        NumberAnimation { target: static_; property: "opacity"; to: 0; duration: 60 }
+    }
+
+    Timer {
+        running: root.live && root.configuration.Glitch && root.configuration.GlitchSignal
+        repeat: true
+        interval: 1200000 + Math.round(Math.random() * 1800000)
+        onTriggered: {
+            signalLoss.restart();
+            gallery.glitchAll();
+            clock.glitchPulse();
+            interval = 1200000 + Math.round(Math.random() * 1800000);
+        }
     }
 
     ClockOverlay {
@@ -159,5 +200,6 @@ WallpaperItem {
         // reduced motion), unlike the clock's once-a-minute text tick.
         drift: root.live && root.configuration.BurnInGuard
         manners: root.configuration.ClockFx
+        glitchOn: root.configuration.Glitch && root.configuration.GlitchClock
     }
 }

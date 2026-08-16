@@ -49,6 +49,15 @@ Item {
     /** The specular sweep and the breathing bloom. */
     property bool sweepOn: true
     property bool bloomBreathe: true
+    property bool glitchSlices: false
+    property bool glitchArrival: false
+
+    /** Burst every card at once — the signal-loss moment. */
+    function glitchAll(): void {
+        card0.glitchBurst();
+        card1.glitchBurst();
+        card2.glitchBurst();
+    }
 
     /** True when the photos hide the nebula completely; it can stop drawing. */
     readonly property bool covered: cardsReady
@@ -606,6 +615,8 @@ Item {
             snowCover: gallery.framed ? gallery.snowCover : 0
             sweepOn: gallery.sweepOn
             bloomBreathe: gallery.bloomBreathe
+            glitchSlices: gallery.glitchSlices
+            glitchArrival: gallery.glitchArrival
             onSourceFailed: gallery.skipFailed(0)
         }
 
@@ -622,6 +633,8 @@ Item {
             snowCover: gallery.framed ? gallery.snowCover : 0
             sweepOn: gallery.sweepOn
             bloomBreathe: gallery.bloomBreathe
+            glitchSlices: gallery.glitchSlices
+            glitchArrival: gallery.glitchArrival
             onSourceFailed: gallery.skipFailed(1)
         }
 
@@ -638,6 +651,8 @@ Item {
             snowCover: gallery.framed ? gallery.snowCover : 0
             sweepOn: gallery.sweepOn
             bloomBreathe: gallery.bloomBreathe
+            glitchSlices: gallery.glitchSlices
+            glitchArrival: gallery.glitchArrival
             onSourceFailed: gallery.skipFailed(2)
         }
     }

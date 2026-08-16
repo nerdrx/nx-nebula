@@ -50,6 +50,23 @@ Item {
     /** The halo breathes. */
     property bool bloomBreathe: true
 
+    /** Glitch: random slice-displacement bursts, and one on each arrival. */
+    property bool glitchSlices: false
+    property bool glitchArrival: false
+
+    function glitchBurst(): void {
+        if (!card.live || card.front.status !== Image.Ready) {
+            return;
+        }
+        for (let i = 0; i < sliceRep.count; ++i) {
+            const sl = sliceRep.itemAt(i);
+            sl.sy = Math.random() * 0.9;
+            sl.sh = 0.02 + Math.random() * 0.06;
+            sl.jitter = (Math.random() < 0.5 ? -1 : 1) * (4 + Math.random() * 14);
+        }
+        burstAnim.restart();
+    }
+
     /** Corner radius, DESIGN --radius scaled to the screen. */
     property real frameRadius: 6
 
@@ -115,7 +132,18 @@ Item {
 
     // Sampling waits out the 800ms crossfade: a grab taken mid-fade sees
     // the picture at a fraction of its opacity and reads too dark.
-    onUseAChanged: sampleDelay.restart()
+    onUseAChanged: {
+        sampleDelay.restart();
+        if (card.glitchArrival) {
+            arrivalGlitch.restart();
+        }
+    }
+
+    Timer {
+        id: arrivalGlitch
+        interval: 150
+        onTriggered: card.glitchBurst()
+    }
     onFrameStyleChanged: sampleDelay.restart()
 
     Timer {
@@ -406,6 +434,62 @@ Item {
 
             Slot { id: imgA; shown: card.useA }
             Slot { id: imgB; shown: !card.useA }
+
+            /*
+                Glitch slices: five clipped bands of the current photo,
+                displaced sideways for a fraction of a second — the anatomy
+                of a datamosh, in plain clipped Images. They share one
+                cached decode and cost nothing while idle.
+            */
+            property real burstOn: 0
+
+            Repeater {
+                id: sliceRep
+                model: 5
+                delegate: Item {
+                    property real sy: 0.2
+                    property real sh: 0.04
+                    property real jitter: 0
+                    y: card.height * sy
+                    width: card.width
+                    height: Math.max(2, card.height * sh)
+                    clip: true
+                    visible: content.burstOn > 0.01
+                    Image {
+                        x: parent.jitter * content.burstOn
+                        y: -parent.y
+                        width: card.width
+                        height: card.height
+                        source: card.front.source
+                        fillMode: card.front.fillMode
+                        sourceSize: card.front.sourceSize
+                        autoTransform: true
+                        asynchronous: true
+                        smooth: true
+                    }
+                }
+            }
+
+            SequentialAnimation {
+                id: burstAnim
+                NumberAnimation { target: content; property: "burstOn"; from: 0; to: 1; duration: 40 }
+                PauseAnimation { duration: 90 }
+                NumberAnimation { target: content; property: "burstOn"; to: 0.4; duration: 30 }
+                PauseAnimation { duration: 60 }
+                NumberAnimation { target: content; property: "burstOn"; to: 1; duration: 30 }
+                PauseAnimation { duration: 110 }
+                NumberAnimation { target: content; property: "burstOn"; to: 0; duration: 40 }
+            }
+
+            Timer {
+                running: card.glitchSlices && card.live && card.loaded
+                repeat: true
+                interval: 180000 + Math.round(Math.random() * 300000)
+                onTriggered: {
+                    card.glitchBurst();
+                    interval = 180000 + Math.round(Math.random() * 300000);
+                }
+            }
 
             /*
                 The sheen: a soft diagonal band of light that sweeps the

@@ -51,6 +51,64 @@ Item {
     /** Entrance tracking multiplier; the intro animates it 1.8 -> 1. */
     property real trackIn: 1
 
+    /** Glitch: chromatic ghosts and the minute scramble. */
+    property bool glitchOn: false
+    property real split: 0
+    property bool scrambling: false
+    property string scrambleText: ""
+
+    function glitchPulse(): void {
+        splitAnim.restart();
+    }
+
+    SequentialAnimation {
+        id: splitAnim
+        NumberAnimation { target: clock; property: "split"; from: 0; to: 1; duration: 50 }
+        PauseAnimation { duration: 120 }
+        NumberAnimation { target: clock; property: "split"; to: 0.3; duration: 40 }
+        PauseAnimation { duration: 70 }
+        NumberAnimation { target: clock; property: "split"; to: 0; duration: 60 }
+    }
+
+    Timer {
+        running: clock.glitchOn && clock.active
+        repeat: true
+        interval: 120000 + Math.round(Math.random() * 240000)
+        onTriggered: {
+            clock.glitchPulse();
+            interval = 120000 + Math.round(Math.random() * 240000);
+        }
+    }
+
+    Timer {
+        id: scrambler
+        property int left: 0
+        interval: 55
+        repeat: true
+        onTriggered: {
+            const glyphs = "0123456789#%&/=?_";
+            let out = "";
+            for (const c of clock.timeText) {
+                out += /[0-9]/.test(c) && Math.random() < 0.7
+                    ? glyphs[Math.floor(Math.random() * glyphs.length)]
+                    : c;
+            }
+            clock.scrambleText = out;
+            if (--left <= 0) {
+                scrambler.stop();
+                clock.scrambling = false;
+            }
+        }
+    }
+
+    onTimeTextChanged: {
+        if (clock.glitchOn && clock.active) {
+            clock.scrambling = true;
+            scrambler.left = 6;
+            scrambler.start();
+        }
+    }
+
     onTimeFormatChanged: clock.refresh()
 
     readonly property real daySize: Math.max(18, Math.round(height * 0.075))

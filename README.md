@@ -91,6 +91,13 @@ transform and opacity only, fully paused whenever the desktop isn't visible.
   entrance — nebula up, tiles rising, the clock's letters tracking in.
   Each of these has its own switch.
 
+- **The glitch kit** (off by default — a deliberate break from the calm):
+  slice-displacement bursts tear across the photo tiles, new photos arrive
+  through a burst, the clock grows chromatic red/cyan ghosts and scrambles
+  its digits on the minute, and every half hour or so the whole wall loses
+  signal for half a second of static before snapping back. One master
+  switch, four sub-switches.
+
 ## The look
 
 ![The celestial bodies](docs/celestials.png)
