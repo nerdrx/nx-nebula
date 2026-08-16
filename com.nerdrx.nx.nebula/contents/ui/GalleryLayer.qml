@@ -600,6 +600,8 @@ Item {
                 && gallery.pointerY * gallery.height >= y + cardRow.y
                 && gallery.pointerY * gallery.height < y + cardRow.y + height
             attention: hovered ? 1 : 0
+            // The cursor as a light source, in this card's own frame.
+            lightPos: ((gallery.pointerX * gallery.width) - (cardRow.x + x)) / Math.max(1, width)
             Behavior on width {
                 enabled: gallery.live
                 NumberAnimation { duration: 700; easing.type: Easing.InOutCubic }

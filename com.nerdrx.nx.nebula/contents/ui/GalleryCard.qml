@@ -44,8 +44,13 @@ Item {
     /** How much snow has settled on the tile, 0..1, from the weather. */
     property real snowCover: 0
 
-    /** A specular sheen sweeps the glass now and then. */
+    /** The specular sheen, when on, rides the pointer like light on
+        tilting glass — see lightPos. */
     property bool sweepOn: true
+
+    /** Where the light source sits in this card's own frame, 0..1 across
+        (fed by the gallery from the smoothed pointer; may leave range). */
+    property real lightPos: 0.5
 
     /** The halo breathes. */
     property bool bloomBreathe: true
@@ -58,12 +63,6 @@ Item {
 
     Behavior on attention {
         NumberAnimation { duration: 400; easing.type: Easing.InOutQuad }
-    }
-
-    onAttentionChanged: {
-        if (attention > 0.5 && card.sweepOn && card.live) {
-            sweepAnim.restart();
-        }
     }
 
     /** Glitch: random slice-displacement bursts, and one on each arrival. */
@@ -509,9 +508,13 @@ Item {
             }
 
             /*
-                The sheen: a soft diagonal band of light that sweeps the
-                pane every couple of minutes, the way glass catches a
-                moving light. Clipped by the content item; transform only.
+                The sheen: a soft diagonal band of light bound to the
+                pointer — the pane behaves like tilting glass under a fixed
+                light, the highlight sliding as the hand moves and fading
+                out as the light leaves the pane's angle. Brightens a touch
+                on the tile under the cursor. No timers, no triggers: it is
+                a pure function of the same smoothed position the parallax
+                rides, so the two always move as one.
             */
             Rectangle {
                 id: sheen
@@ -519,35 +522,17 @@ Item {
                 height: card.height * 2.4
                 rotation: 24
                 y: -card.height * 0.7
-                x: -width * 1.5
-                opacity: 0
-                visible: card.sweepOn
+                // Amplified travel: crossing the card sweeps the light a
+                // little further than the hand, like a reflection should.
+                x: card.width * (card.lightPos * 1.5 - 0.25) - width / 2
+                visible: card.sweepOn && card.live && opacity > 0.004
+                opacity: (0.06 + 0.10 * card.attention)
+                    * Math.max(0, 1 - Math.abs(card.lightPos - 0.5) * 1.1)
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
                     GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.0) }
                     GradientStop { position: 0.5; color: Qt.rgba(0.95, 0.92, 1.0, 0.13) }
                     GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0.0) }
-                }
-            }
-
-            ParallelAnimation {
-                id: sweepAnim
-                paused: sweepAnim.running && !card.live
-                NumberAnimation { target: sheen; property: "x"; from: -sheen.width * 1.5; to: card.width + sheen.width * 0.5; duration: 1600; easing.type: Easing.InOutQuad }
-                SequentialAnimation {
-                    NumberAnimation { target: sheen; property: "opacity"; from: 0; to: 1; duration: 400 }
-                    PauseAnimation { duration: 800 }
-                    NumberAnimation { target: sheen; property: "opacity"; to: 0; duration: 400 }
-                }
-            }
-
-            Timer {
-                running: card.sweepOn && card.live && card.loaded
-                repeat: true
-                interval: 90000 + Math.round(Math.random() * 180000)
-                onTriggered: {
-                    sweepAnim.restart();
-                    interval = 90000 + Math.round(Math.random() * 180000);
                 }
             }
         }
