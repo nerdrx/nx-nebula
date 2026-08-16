@@ -141,9 +141,19 @@ AURORA_OPACITY = 0.14  # QML peak opacity; printed in the contract below
 # QML picks from with sourceClipRect; the rest are single sprites for the
 # Milky Way veil, the rare comet, and the evening star.
 MOON_FRAME = 384
-MOON_FRAMES = 16
+MOON_FRAMES = 16          # phase frames; two specials are appended after
 MOON_LIT = "#e9e3f7"
 MOON_DARK = "#241c3c"
+MOON_BLOOD = "#c85a30"    # frame 16: the eclipsed moon
+MOON_BLUE = "#dbe4ff"     # frame 17: the blue moon's cold cast
+
+# The real sky: the Yale Bright Star Catalog trimmed to Vmag <= 4.0
+# (tools/data/bright_stars.csv), plotted as azimuthal-equidistant discs
+# around each celestial pole. QML spins them at sidereal rate.
+REALSKY_SIZE = 2048
+REALSKY_REACH = 130.0     # degrees of pole distance on the disc edge
+
+CLOUDS_W, CLOUDS_H = 1600, 900
 
 MW_W, MW_H = 1600, 900
 
@@ -441,12 +451,19 @@ def build_moon() -> tuple[Image.Image, dict]:
     inside = np.clip((1.0 - rho) * r / 1.5, 0.0, 1.0)
     z = np.sqrt(np.clip(1.0 - rho * rho, 0.0, None))
 
+    # The face: maria as broad dark blotches, a whisper of crater rubble.
+    # One fixed texture across every frame — it is the same moon all month.
+    rng = np.random.default_rng(SEED ^ 0x3007)
+    maria = _smooth_noise(rng, size, size, (3, 5, 9)) ** 1.6
+    rubble = _smooth_noise(rng, size, size, (24, 48))
+    face = (1.0 - 0.30 * maria - 0.08 * rubble).astype(np.float32)
+
     lit_rgb, dark_rgb = hex_rgb(MOON_LIT), hex_rgb(MOON_DARK)
     sheet = np.zeros((size, size * MOON_FRAMES, 4), dtype=np.uint8)
     for i in range(MOON_FRAMES):
         a = 2.0 * math.pi * i / MOON_FRAMES
         d = u * math.sin(a) - z * math.cos(a)
-        lit = np.clip(d / 0.10 + 0.5, 0.0, 1.0) * (0.85 + 0.15 * z)
+        lit = np.clip(d / 0.10 + 0.5, 0.0, 1.0) * (0.85 + 0.15 * z) * face
         alpha = inside * np.clip(lit + 0.16, 0.0, 1.0)
         rgb = dark_rgb.reshape(1, 1, 3) + (lit_rgb - dark_rgb).reshape(1, 1, 3) * lit[:, :, None]
         sheet[:, i * size:(i + 1) * size, :3] = np.clip(np.rint(rgb * 255.0), 0, 255)
@@ -454,6 +471,132 @@ def build_moon() -> tuple[Image.Image, dict]:
 
     meta = {"file": "moon.png", "frame": size, "frames": MOON_FRAMES, "opacity": 0.85}
     return Image.fromarray(sheet, mode="RGBA"), meta
+
+
+def build_moon_sheet() -> tuple[Image.Image, dict]:
+    """The phase sheet plus two special frames: 16 = the eclipsed blood
+    moon, 17 = the blue moon.
+
+    The blood moon is not a flat recolour: the umbra's shadow is deeper on
+    one limb, so the disc runs from a dark bruised brown across copper into
+    a rim still catching sunset light, with the maria showing through the
+    whole way — which is what a real eclipse looks like through thin air.
+    """
+    phases, meta = build_moon()
+    size = MOON_FRAME
+    sheet = Image.new("RGBA", (size * (MOON_FRAMES + 2), size))
+    sheet.paste(phases, (0, 0))
+
+    full = np.asarray(
+        phases.crop((8 * size, 0, 9 * size, size)), dtype=np.float32
+    ) / 255.0
+    lum = full[:, :, :3].mean(axis=2, keepdims=True)
+    peak = max(float(lum.max()), 1e-6)
+    lum_n = lum / peak
+
+    axis = ((np.arange(size, dtype=np.float32) + 0.5) - size / 2) / (size * 0.42)
+    u = axis.reshape(1, size)
+    v = axis.reshape(size, 1)
+
+    # Blood: umbral shading running diagonally across the disc — deep
+    # bruise at the upper left, copper through the middle, a rim of
+    # rescued sunset at the lower right.
+    shade = np.clip((u + v) * 0.5 * 0.9 + 0.55, 0.0, 1.0)[:, :, None]
+    deep = hex_rgb("#4a160c").reshape(1, 1, 3)
+    copper = hex_rgb("#c85a30").reshape(1, 1, 3)
+    rim = hex_rgb("#e8935a").reshape(1, 1, 3)
+    lowc = deep + (copper - deep) * np.clip(shade / 0.62, 0.0, 1.0)
+    blood = lowc + (rim - lowc) * np.clip((shade - 0.62) / 0.38, 0.0, 1.0) ** 1.5
+    frame = np.empty((size, size, 4), dtype=np.uint8)
+    frame[:, :, :3] = np.clip(np.rint(blood * lum_n * 255.0), 0, 255)
+    frame[:, :, 3] = np.clip(np.rint(full[:, :, 3] * (0.55 + 0.35 * shade[:, :, 0:1])[:, :, 0] * 255.0), 0, 255)
+    sheet.paste(Image.fromarray(frame, mode="RGBA"), (MOON_FRAMES * size, 0))
+
+    # Blue: the cold cast, maria intact.
+    tint = hex_rgb(MOON_BLUE).reshape(1, 1, 3)
+    frame = np.empty((size, size, 4), dtype=np.uint8)
+    frame[:, :, :3] = np.clip(np.rint(lum_n * tint * 255.0), 0, 255)
+    frame[:, :, 3] = np.clip(np.rint(full[:, :, 3] * 255.0), 0, 255)
+    sheet.paste(Image.fromarray(frame, mode="RGBA"), ((MOON_FRAMES + 1) * size, 0))
+
+    return sheet, meta
+
+
+def build_realsky(south: bool) -> tuple[Image.Image, dict]:
+    """One hemisphere's worth of the actual sky.
+
+    Azimuthal-equidistant projection about the celestial pole: radius is
+    pole distance, angle is right ascension. QML rotates the disc at
+    sidereal rate, and the constellations wheel past exactly as they do
+    outside. Splat size and brightness follow visual magnitude.
+    """
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "bright_stars.csv")
+    stars = []
+    with open(path, encoding="utf-8") as fh:
+        next(fh)
+        for line in fh:
+            ra, dec, mag = (float(v) for v in line.split(","))
+            stars.append((ra, dec, mag))
+
+    rng = np.random.default_rng(SEED ^ (0x50D7 if south else 0x40D7))
+    s = REALSKY_SIZE
+    alpha = np.zeros((s, s), dtype=np.float32)
+    premult = np.zeros((s, s, 3), dtype=np.float32)
+    tints = star_palette(rng, len(stars))
+
+    for i, (ra, dec, mag) in enumerate(stars):
+        pole_dist = (90.0 + dec) if south else (90.0 - dec)
+        if pole_dist > REALSKY_REACH:
+            continue
+        r = pole_dist / REALSKY_REACH * (s / 2 - 8)
+        # Southern skies wheel the other way; mirroring RA keeps the
+        # constellations' handedness correct.
+        a = math.radians(ra) * (-1.0 if south else 1.0)
+        px = s / 2 + r * math.sin(a)
+        py = s / 2 - r * math.cos(a)
+        bright = min(1.0, 1.30 * 10.0 ** (-0.22 * mag))
+        sigma = 1.4 + 1.8 * min(1.0, 10.0 ** (-0.2 * mag))
+        _splat_rgba(alpha, premult, px, py, sigma, tints[i], bright)
+        if mag < 1.0:
+            _splat_rgba(alpha, premult, px, py, sigma * 3.2, tints[i], bright * 0.12)
+
+    np.clip(alpha, 0.0, 1.0, out=alpha)
+    safe = np.maximum(alpha, 1e-7)
+    rgb = np.clip(premult / safe[:, :, None], 0.0, 1.0)
+    rgb[alpha < 1e-6] = 0.0
+
+    out = np.empty((s, s, 4), dtype=np.uint8)
+    out[:, :, :3] = np.clip(np.rint(rgb * 255.0), 0, 255)
+    out[:, :, 3] = np.clip(np.rint(alpha * 255.0), 0, 255)
+
+    name = "realsky-south.png" if south else "realsky-north.png"
+    meta = {"file": name, "size": s, "reach": REALSKY_REACH, "stars": len(stars)}
+    return Image.fromarray(out, mode="RGBA"), meta
+
+
+def build_clouds() -> tuple[Image.Image, dict]:
+    """A soft cloud veil for the weather layer: billowing smooth noise,
+    edges dissolved, alpha normalised. Two drifting copies at partial
+    opacity read as overcast without ever showing a seam."""
+    rng = np.random.default_rng(SEED ^ 0xC10D)
+    w, h = CLOUDS_W, CLOUDS_H
+    x = ((np.arange(w, dtype=np.float32) + 0.5) / w).reshape(1, w)
+    y = ((np.arange(h, dtype=np.float32) + 0.5) / h).reshape(h, 1)
+
+    billow = _smooth_noise(rng, w, h, (3, 6, 12, 24, 48)) ** 1.4
+    fade = (smoothstep(x / 0.10) * smoothstep((1.0 - x) / 0.10)
+            * smoothstep(y[:, 0] / 0.12).reshape(h, 1)
+            * smoothstep((1.0 - y[:, 0]) / 0.12).reshape(h, 1))
+    alpha = billow * fade
+    alpha /= max(float(alpha.max()), 1e-6)
+
+    tint = hex_rgb("#2a2340")
+    out = np.empty((h, w, 4), dtype=np.uint8)
+    out[:, :, :3] = np.clip(np.rint(tint.reshape(1, 1, 3) * np.ones((h, w, 3)) * 255.0), 0, 255)
+    out[:, :, 3] = np.clip(np.rint(alpha * 255.0), 0, 255)
+
+    meta = {"file": "clouds.png", "width": w, "height": h}
+    return Image.fromarray(out, mode="RGBA"), meta
 
 
 def build_milkyway() -> tuple[Image.Image, dict]:
@@ -744,10 +887,13 @@ def build(root: str) -> None:
     )
 
     for key, builder in (
-        ("moon", build_moon),
+        ("moon", build_moon_sheet),
         ("milkyway", build_milkyway),
         ("comet", build_comet),
         ("venus", build_venus),
+        ("realskyNorth", lambda: build_realsky(False)),
+        ("realskySouth", lambda: build_realsky(True)),
+        ("clouds", build_clouds),
     ):
         sprite, entry = builder()
         size = save_png(sprite, os.path.join(root, IMAGES_DIR, entry["file"]))
@@ -802,7 +948,14 @@ def check(root: str) -> int:
     if "aurora" in meta:
         expected.append((meta["aurora"]["file"], (AURORA_W, AURORA_H)))
     if "moon" in meta:
-        expected.append((meta["moon"]["file"], (MOON_FRAME * MOON_FRAMES, MOON_FRAME)))
+        expected.append((meta["moon"]["file"], (MOON_FRAME * (MOON_FRAMES + 2), MOON_FRAME)))
+    for key, dims in (
+        ("realskyNorth", (REALSKY_SIZE, REALSKY_SIZE)),
+        ("realskySouth", (REALSKY_SIZE, REALSKY_SIZE)),
+        ("clouds", (CLOUDS_W, CLOUDS_H)),
+    ):
+        if key in meta:
+            expected.append((meta[key]["file"], dims))
     if "milkyway" in meta:
         expected.append((meta["milkyway"]["file"], (MW_W, MW_H)))
     if "comet" in meta:

@@ -91,7 +91,7 @@ Item {
     readonly property real availW: Math.max(1, width - sideMargin * 2 - gap * (activeSlots - 1))
     readonly property real cardH: Math.min(height * (activeSlots === 1 ? 0.88 : 0.80),
                                            availW / Math.max(0.01, aspectSum))
-    readonly property real frameRadius: Math.max(12, Math.min(32, Math.round(18 * height / 1080)))
+    readonly property real frameRadius: Math.max(4, Math.min(8, Math.round(6 * height / 1080)))
 
     // --- the library ------------------------------------------------------
     /*

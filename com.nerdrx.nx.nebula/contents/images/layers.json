@@ -100,6 +100,23 @@
     "size": 128,
     "opacity": 0.9
   },
+  "realskyNorth": {
+    "file": "realsky-north.png",
+    "size": 2048,
+    "reach": 130.0,
+    "stars": 518
+  },
+  "realskySouth": {
+    "file": "realsky-south.png",
+    "size": 2048,
+    "reach": 130.0,
+    "stars": 518
+  },
+  "clouds": {
+    "file": "clouds.png",
+    "width": 1600,
+    "height": 900
+  },
   "starCount": 1020,
   "referenceStarCount": 900,
   "twinkleSwing": 0.22

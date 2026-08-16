@@ -42,7 +42,7 @@ Item {
     property bool caption: false
 
     /** Corner radius, DESIGN --radius scaled to the screen. */
-    property real frameRadius: 18
+    property real frameRadius: 6
 
     /** Natural aspect of whatever is on screen. 1.5 until something loads. */
     readonly property real aspect: (front.status === Image.Ready && front.implicitHeight > 0)

@@ -33,7 +33,7 @@ Item {
 
     /** The item to round off. Assigned by GalleryCard.onLoaded. */
     property Item plate: null
-    property real cornerRadius: 18
+    property real cornerRadius: 6
 
     /** Bloom colour; GalleryCard feeds it the photo's own dominant hue. */
     property color tint: "#7700ff"

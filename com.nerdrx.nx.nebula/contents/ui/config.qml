@@ -50,6 +50,18 @@ Kirigami.FormLayout {
     property alias cfg_Almanac: almanac.checked
     property bool cfg_AlmanacDefault: true
 
+    property alias cfg_RealSky: realSky.checked
+    property bool cfg_RealSkyDefault: false
+
+    property alias cfg_Weather: weatherOn.checked
+    property bool cfg_WeatherDefault: false
+
+    property alias cfg_WeatherLat: weatherLat.text
+    property string cfg_WeatherLatDefault: ""
+
+    property alias cfg_WeatherLon: weatherLon.text
+    property string cfg_WeatherLonDefault: ""
+
     property int cfg_Mode: 0
     property int cfg_ModeDefault: 0
 
@@ -185,6 +197,54 @@ Kirigami.FormLayout {
         id: southern
         enabled: animate.checked
         text: i18nd(root.dom, "Southern hemisphere — seasons and the moon flip")
+    }
+
+    QQC2.CheckBox {
+        id: realSky
+        enabled: animate.checked
+        text: i18nd(root.dom, "The real stars — the actual sky, wheeling at sidereal rate")
+    }
+
+    // --------------------------------------------------------------- weather
+
+    Kirigami.Separator {
+        Kirigami.FormData.label: i18nd(root.dom, "Weather")
+        Kirigami.FormData.isSection: true
+    }
+
+    QQC2.CheckBox {
+        id: weatherOn
+        Kirigami.FormData.label: i18nd(root.dom, "Weather:")
+        text: i18nd(root.dom, "Let the sky wear your weather")
+    }
+
+    RowLayout {
+        Kirigami.FormData.label: i18nd(root.dom, "Place:")
+        enabled: weatherOn.checked
+        spacing: Kirigami.Units.smallSpacing
+
+        QQC2.TextField {
+            id: weatherLat
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+            placeholderText: i18nd(root.dom, "Latitude")
+        }
+        QQC2.TextField {
+            id: weatherLon
+            Layout.preferredWidth: Kirigami.Units.gridUnit * 6
+            placeholderText: i18nd(root.dom, "Longitude")
+        }
+    }
+
+    QQC2.Label {
+        Layout.maximumWidth: Kirigami.Units.gridUnit * 22
+        enabled: weatherOn.checked
+        wrapMode: Text.WordWrap
+        font: Kirigami.Theme.smallFont
+        text: i18nd(root.dom,
+            "Cloud cover veils the stars and grounds the meteor showers; rain "
+            + "and snow fall in front of the nebula. The coordinates you type "
+            + "here go to open-meteo.com twice an hour and nowhere else — no "
+            + "account, no key, and nothing is fetched until you opt in.")
     }
 
     QQC2.Label {

@@ -66,8 +66,56 @@ Item {
         almanac line; refreshed by the minute tick. */
     property string almanacText: ""
 
-    /** Which of the sixteen baked phases the moon shows tonight. */
+    /** The real stars, wheeling about the celestial pole at sidereal rate,
+        in place of the authored far starfield. */
+    property bool realSky: false
+
+    /** How clear the sky is, 0..1. Fed by the weather layer when the user
+        opts in; 1 means tonight is whatever the almanac promised. */
+    property real clarity: 1
+
+    /** Which of the baked moon frames shows tonight: 0-15 the phases,
+        16 the eclipsed blood moon, 17 the blue moon. */
     property int moonFrame: 0
+
+    /** Where the real sky has wheeled to, in degrees. */
+    property real skyAngle: 0
+
+    /** Local sidereal angle, approximately: local civil time stands in for
+        UT, so the absolute orientation is off by the timezone while the
+        *rate* — the thing you can actually watch — is exact. */
+    function siderealDeg(when: date): real {
+        const d = (when.getTime() - 946728000000) / 86400000;   // since J2000 noon
+        const h = when.getHours() + when.getMinutes() / 60;
+        return (100.46 + 0.9856474 * d + 15 * h) % 360;
+    }
+
+    /** The lunar eclipses through 2030, by date. On these nights the full
+        moon turns copper for the whole night — the hours-long umbra pass,
+        stylised to the wallpaper's timescale. */
+    readonly property var lunarEclipses: [
+        [2026, 3, 3], [2026, 8, 28], [2028, 1, 12], [2028, 7, 6],
+        [2028, 12, 31], [2029, 6, 26], [2029, 12, 20], [2030, 6, 15]
+    ]
+
+    function isEclipseNight(when: date): bool {
+        return nebula.lunarEclipses.some(e => e[0] === when.getFullYear()
+            && e[1] === when.getMonth() + 1 && e[2] === when.getDate());
+    }
+
+    /** A second full moon in one calendar month. The five-day guard keeps
+        one full moon's two-day frame from counting itself twice. */
+    function isBlueMoon(when: date): bool {
+        if (nebula.moonPhaseFrame(when) !== 8) {
+            return false;
+        }
+        for (let d = 1; d < when.getDate() - 5; ++d) {
+            if (nebula.moonPhaseFrame(new Date(when.getFullYear(), when.getMonth(), d, 12)) === 8) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     function moonPhaseFrame(when: date): int {
         // The synodic month, counted from a known new moon
@@ -136,6 +184,9 @@ Item {
         points. Silence on ordinary nights is the whole point.
     */
     function almanacFor(when: date): string {
+        if (nebula.isEclipseNight(when)) {
+            return "Lunar eclipse tonight";
+        }
         const day = new Date(when.getFullYear(), when.getMonth(), when.getDate());
         for (const peak of nebula.showerPeaks) {
             const nearest = new Date(when.getFullYear(), peak[0] - 1, peak[1]);
@@ -145,10 +196,18 @@ Item {
         }
         const frame = nebula.moonPhaseFrame(when);
         if (frame === 8) {
-            return "Full moon";
+            return nebula.isBlueMoon(when) ? "Blue moon" : "Full moon";
         }
         if (frame === 0) {
             return "New moon";
+        }
+        // One evening of anticipation before a peak; still nothing on the
+        // truly ordinary nights.
+        const tomorrow = new Date(when.getFullYear(), when.getMonth(), when.getDate() + 1);
+        for (const peak of nebula.showerPeaks) {
+            if (tomorrow.getMonth() + 1 === peak[0] && tomorrow.getDate() === peak[1]) {
+                return "The " + peak[2] + " tomorrow";
+            }
         }
         const md = (when.getMonth() + 1) * 100 + when.getDate();
         if (md === 320 || md === 922) {
@@ -173,9 +232,17 @@ Item {
         triggeredOnStart: true
         interval: 60000
         onTriggered: {
-            nebula.night = nebula.skyFactor(new Date());
-            nebula.moonFrame = nebula.moonPhaseFrame(new Date());
-            nebula.almanacText = nebula.almanacFor(new Date());
+            const now = new Date();
+            nebula.night = nebula.skyFactor(now);
+            nebula.almanacText = nebula.almanacFor(now);
+            nebula.skyAngle = nebula.siderealDeg(now);
+            let frame = nebula.moonPhaseFrame(now);
+            if (nebula.isEclipseNight(now)) {
+                frame = 16;
+            } else if (frame === 8 && nebula.isBlueMoon(now)) {
+                frame = 17;
+            }
+            nebula.moonFrame = frame;
         }
     }
 
@@ -315,7 +382,7 @@ Item {
         smooth: true
         asynchronous: true
         visible: nebula.twinkle
-        opacity: base + wobble
+        opacity: (base + wobble) * nebula.clarity
 
         SequentialAnimation {
             running: nebula.twinkle
@@ -407,7 +474,7 @@ Item {
             smooth: true
             asynchronous: true
             visible: nebula.celestials && opacity > 0.004
-            opacity: 0.07 * Math.max(0, Math.min(1, (nebula.night - 0.70) / 0.22))
+            opacity: 0.07 * Math.max(0, Math.min(1, (nebula.night - 0.70) / 0.22)) * nebula.clarity
             transform: Translate { id: mwDrift }
 
             SequentialAnimation {
@@ -417,6 +484,39 @@ Item {
                 NumberAnimation { target: mwDrift; property: "x"; from: 0; to: nebula.unit * 0.006; duration: Math.round(105000 / nebula.speed); easing.type: Easing.InOutSine }
                 NumberAnimation { target: mwDrift; property: "x"; from: nebula.unit * 0.006; to: -nebula.unit * 0.006; duration: Math.round(210000 / nebula.speed); easing.type: Easing.InOutSine }
                 NumberAnimation { target: mwDrift; property: "x"; from: -nebula.unit * 0.006; to: 0; duration: Math.round(105000 / nebula.speed); easing.type: Easing.InOutSine }
+            }
+        }
+
+        /*
+            The real sky. The Yale catalog to fourth magnitude, projected
+            about the celestial pole and wheeling at sidereal rate — a
+            quarter degree a minute, invisible in the moment, unmistakable
+            across an evening. The minute tick supplies the angle and a
+            linear minute-long rotation glides between values, so the wheel
+            turns instead of ticking. It replaces the authored far field;
+            the near stars and twinklers stay for sparkle.
+        */
+        Image {
+            id: realsky
+            source: nebula.southern ? "../images/realsky-south.png" : "../images/realsky-north.png"
+
+            readonly property real span: nebula.unit * 2.6
+
+            width: span
+            height: span
+            x: nebula.width * 0.76 - span / 2
+            y: nebula.height * 0.10 - span / 2
+            rotation: (nebula.southern ? 1 : -1) * nebula.skyAngle
+            smooth: true
+            asynchronous: true
+            visible: nebula.realSky
+            opacity: 0.92 * (0.88 + 0.24 * nebula.nightNow) * nebula.clarity
+
+            Behavior on rotation {
+                RotationAnimation {
+                    duration: 60000
+                    direction: RotationAnimation.Shortest
+                }
             }
         }
 
@@ -433,8 +533,9 @@ Item {
             clip: true
             smooth: true
             asynchronous: true
+            visible: !nebula.realSky
             // 0.85 at the neutral point, brighter after dusk, dimmer by day.
-            opacity: 0.85 * (0.88 + 0.24 * nebula.nightNow)
+            opacity: 0.85 * (0.88 + 0.24 * nebula.nightNow) * nebula.clarity
             transform: Translate { id: farDrift }
 
             SequentialAnimation {
@@ -460,7 +561,7 @@ Item {
             asynchronous: true
             // Full brightness from dusk on (the formula tops out just past
             // 1.0 and clamps); only the day softens the near field.
-            opacity: Math.min(1, 0.90 + 0.24 * nebula.nightNow)
+            opacity: Math.min(1, 0.90 + 0.24 * nebula.nightNow) * nebula.clarity
             transform: Translate { id: nearDrift }
 
             // Twice the throw and a shorter period than the far layer: the
@@ -511,6 +612,7 @@ Item {
             asynchronous: true
             visible: nebula.celestials && opacity > 0.004
             opacity: 0.85 * Math.max(0, Math.min(1, (nebula.night - 0.55) / 0.20))
+                * (0.30 + 0.70 * nebula.clarity)   // the moon burns through thin cloud
             transform: Translate { id: moonDrift }
 
             SequentialAnimation {
@@ -545,7 +647,43 @@ Item {
             smooth: true
             asynchronous: true
             visible: nebula.celestials && opacity > 0.004
-            opacity: 0.9 * dusk
+            opacity: 0.9 * dusk * nebula.clarity
+        }
+
+        /*
+            The nova: the once-in-a-blue-moon tier. Every four hours the sky
+            rolls a quiet die; a few times a month, on a dark clear night,
+            one new star swells over a minute to outshine everything, then
+            takes half an hour to die. Most owners will see it once and
+            wonder if they imagined it. No almanac line — it is a secret.
+        */
+        Image {
+            id: nova
+            source: "../images/star-bright.png"
+            width: nebula.unit * 0.030
+            height: width
+            opacity: 0
+            visible: nebula.celestials && opacity > 0
+        }
+
+        SequentialAnimation {
+            id: novaShow
+            paused: novaShow.running && !nebula.animating
+            NumberAnimation { target: nova; property: "opacity"; from: 0; to: 0.95; duration: 60000; easing.type: Easing.InOutSine }
+            NumberAnimation { target: nova; property: "opacity"; to: 0; duration: 1800000; easing.type: Easing.InQuad }
+        }
+
+        Timer {
+            id: novaClock
+            running: nebula.celestials && nebula.animating
+            repeat: true
+            interval: 14400000
+            onTriggered: {
+                if (Math.random() < 0.033 && nebula.skyFactor(new Date()) >= 0.5
+                        && nebula.clarity >= 0.45) {
+                    nebula.novaNow();
+                }
+            }
         }
 
         /*
@@ -584,7 +722,7 @@ Item {
             repeat: true
             interval: 7200000 + Math.round(Math.random() * 14400000)   // 2 to 6 hours
             onTriggered: {
-                if (nebula.skyFactor(new Date()) >= 0.5) {
+                if (nebula.skyFactor(new Date()) >= 0.5 && nebula.clarity >= 0.45) {
                     nebula.cometNow();
                 }
                 interval = 7200000 + Math.round(Math.random() * 14400000);
@@ -641,7 +779,7 @@ Item {
             repeat: true
             interval: 720000 + Math.round(Math.random() * 1380000)
             onTriggered: {
-                if (nebula.skyFactor(new Date()) >= 0.65) {
+                if (nebula.skyFactor(new Date()) >= 0.65 && nebula.clarity >= 0.45) {
                     nebula.auroraNow();
                 }
                 interval = 720000 + Math.round(Math.random() * 1380000);
@@ -705,7 +843,11 @@ Item {
             repeat: true
             interval: 45000 + Math.round(Math.random() * 105000)
             onTriggered: {
-                nebula.meteorNow();
+                // Overcast skies show no meteors; the schedule keeps
+                // rolling so a clearing sky picks straight back up.
+                if (nebula.clarity >= 0.45) {
+                    nebula.meteorNow();
+                }
                 interval = nebula.nextMeteorDelay(new Date());
             }
         }
@@ -749,7 +891,9 @@ Item {
             repeat: true
             interval: 360000 + Math.round(Math.random() * 720000)
             onTriggered: {
-                nebula.satelliteNow();
+                if (nebula.clarity >= 0.45) {
+                    nebula.satelliteNow();
+                }
                 interval = 360000 + Math.round(Math.random() * 720000);
             }
         }
@@ -877,6 +1021,13 @@ Item {
         auroraOut.duration = life - auroraIn.duration
             - auroraDim.duration - auroraSwell.duration;
         auroraShow.restart();
+    }
+
+    /** Light the nova once, immediately. */
+    function novaNow(): void {
+        nova.x = nebula.width * (0.10 + Math.random() * 0.80) - nova.width / 2;
+        nova.y = nebula.height * (0.08 + Math.random() * 0.50) - nova.height / 2;
+        novaShow.restart();
     }
 
     /** Fly the comet once, immediately. The scheduler's entry point, public

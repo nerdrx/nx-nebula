@@ -63,10 +63,33 @@ transform and opacity only, fully paused whenever the desktop isn't visible.
   few-pixel Lissajous over minutes, spreading the brightest static shapes
   across the panel. On by default, invisible in practice.
 
+- **Rare nights** — on the real lunar-eclipse dates through 2030 the full
+  moon spends the night copper-red; a second full moon in a month is a blue
+  moon and looks it; and a few times a month, on a dark clear night, a nova
+  swells over a minute and dies over half an hour. No almanac line for that
+  one — it's a secret.
+- **The real sky** (optional) — the Yale Bright Star Catalog to fourth
+  magnitude, wheeling about the celestial pole at true sidereal rate. The
+  Big Dipper is actually there, where it should be for the hour.
+- **Weather** (opt-in) — the sky can wear your weather: cloud cover veils
+  the stars and grounds the meteor showers, rain and snow fall in front of
+  the nebula. Four numbers from open-meteo.com twice an hour, coordinates
+  typed by hand, nothing fetched until you switch it on.
+
+## The look
+
+![The celestial bodies](docs/celestials.png)
+![The almanac](docs/almanac.png)
+![Full, blood, and blue moons](docs/moons.png)
+![The aurora](docs/aurora.png)
+![The gallery](docs/gallery.png)
+![Weather over the sky](docs/weather.png)
+
 ## Install
 
 ```bash
-./install.sh
+./install.sh              # desktop
+./install.sh --lockscreen # desktop + lock screen
 ```
 
 Then right-click the desktop → *Desktop and Wallpaper* → Wallpaper type

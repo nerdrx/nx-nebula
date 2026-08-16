@@ -53,12 +53,28 @@ WallpaperItem {
         aurora: root.configuration.Aurora
         celestials: root.configuration.Celestials
         southern: root.configuration.Southern
+        realSky: root.configuration.RealSky
+        clarity: weather.clarity
 
         onReadyChanged: {
             if (nebula.ready) {
                 root.loading = false;
             }
         }
+    }
+
+    WeatherLayer {
+        id: weather
+        anchors.fill: parent
+        // The weather sits over the sky and under the photographs, exactly
+        // where an atmosphere goes. Opt-in twice over: the switch, and
+        // coordinates the user typed themselves.
+        enabled: root.configuration.Weather
+            && String(root.configuration.WeatherLat).length > 0
+            && String(root.configuration.WeatherLon).length > 0
+        latitude: Number(root.configuration.WeatherLat)
+        longitude: Number(root.configuration.WeatherLon)
+        live: root.live && !(root.galleryMode && gallery.covered)
     }
 
     GalleryLayer {

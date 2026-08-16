@@ -53,6 +53,22 @@
       <label>A quiet line under the clock on special nights</label>
       <default>true</default>
     </entry>
+    <entry name="RealSky" type="bool">
+      <label>The actual bright stars, wheeling at sidereal rate</label>
+      <default>false</default>
+    </entry>
+    <entry name="Weather" type="bool">
+      <label>Fetch real weather from open-meteo.com and wear it</label>
+      <default>false</default>
+    </entry>
+    <entry name="WeatherLat" type="String">
+      <label>Latitude for the weather, entered by hand</label>
+      <default></default>
+    </entry>
+    <entry name="WeatherLon" type="String">
+      <label>Longitude for the weather, entered by hand</label>
+      <default></default>
+    </entry>
     <entry name="BurnInGuard" type="bool">
       <label>Wander static elements a few pixels to spare OLED panels</label>
       <default>true</default>
