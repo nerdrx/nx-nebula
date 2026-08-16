@@ -160,6 +160,18 @@ WallpaperItem {
         onFolderChanged: root.readCursor()
     }
 
+    // A rename keeps the count at 1: the model reports it as dataChanged
+    // (measured: 40 renames = 1 countChanged, 39 dataChanged). Listen to
+    // every way the model can move, or the pointer goes deaf after the
+    // first position.
+    Connections {
+        target: cursorWatch
+        function onDataChanged() { root.readCursor(); }
+        function onRowsInserted() { root.readCursor(); }
+        function onRowsRemoved() { root.readCursor(); }
+        function onModelReset() { root.readCursor(); }
+    }
+
     property bool healed: false
 
     function readCursor(): void {
