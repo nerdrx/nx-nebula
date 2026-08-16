@@ -46,6 +46,19 @@ Item {
         }
     }
 
+    /** Swells the glow ±0.05 on a slow period when on. */
+    property bool breathe: false
+    property real swell: 0
+
+    SequentialAnimation {
+        running: true
+        paused: !halo.breathe
+        loops: Animation.Infinite
+        NumberAnimation { target: halo; property: "swell"; from: 0; to: 0.05; duration: 4400; easing.type: Easing.InOutSine }
+        NumberAnimation { target: halo; property: "swell"; from: 0.05; to: -0.04; duration: 8800; easing.type: Easing.InOutSine }
+        NumberAnimation { target: halo; property: "swell"; from: -0.04; to: 0; duration: 4400; easing.type: Easing.InOutSine }
+    }
+
     MultiEffect {
         anchors.fill: parent
         source: shape
@@ -53,6 +66,6 @@ Item {
         blurEnabled: true
         blur: 1.0
         blurMax: 40
-        opacity: 0.34
+        opacity: 0.34 + halo.swell
     }
 }

@@ -44,6 +44,12 @@ Item {
     /** How much snow has settled on the tile, 0..1, from the weather. */
     property real snowCover: 0
 
+    /** A specular sheen sweeps the glass now and then. */
+    property bool sweepOn: true
+
+    /** The halo breathes. */
+    property bool bloomBreathe: true
+
     /** Corner radius, DESIGN --radius scaled to the screen. */
     property real frameRadius: 6
 
@@ -363,7 +369,10 @@ Item {
         anchors.margins: item ? -item.reach : 0
         active: card.frameStyle === 1 && card.effectsPossible
         source: "BloomHalo.qml"
-        onLoaded: item.tint = Qt.binding(() => card.glowColor)
+        onLoaded: {
+            item.tint = Qt.binding(() => card.glowColor);
+            item.breathe = Qt.binding(() => card.bloomBreathe && card.live);
+        }
     }
 
     // The plate is the whole card: lit edge plus picture. When the glass
@@ -397,6 +406,49 @@ Item {
 
             Slot { id: imgA; shown: card.useA }
             Slot { id: imgB; shown: !card.useA }
+
+            /*
+                The sheen: a soft diagonal band of light that sweeps the
+                pane every couple of minutes, the way glass catches a
+                moving light. Clipped by the content item; transform only.
+            */
+            Rectangle {
+                id: sheen
+                width: card.width * 0.5
+                height: card.height * 2.4
+                rotation: 24
+                y: -card.height * 0.7
+                x: -width * 1.5
+                opacity: 0
+                visible: card.sweepOn
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.0) }
+                    GradientStop { position: 0.5; color: Qt.rgba(0.95, 0.92, 1.0, 0.13) }
+                    GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0.0) }
+                }
+            }
+
+            ParallelAnimation {
+                id: sweepAnim
+                paused: sweepAnim.running && !card.live
+                NumberAnimation { target: sheen; property: "x"; from: -sheen.width * 1.5; to: card.width + sheen.width * 0.5; duration: 1600; easing.type: Easing.InOutQuad }
+                SequentialAnimation {
+                    NumberAnimation { target: sheen; property: "opacity"; from: 0; to: 1; duration: 400 }
+                    PauseAnimation { duration: 800 }
+                    NumberAnimation { target: sheen; property: "opacity"; to: 0; duration: 400 }
+                }
+            }
+
+            Timer {
+                running: card.sweepOn && card.live && card.loaded
+                repeat: true
+                interval: 90000 + Math.round(Math.random() * 180000)
+                onTriggered: {
+                    sweepAnim.restart();
+                    interval = 90000 + Math.round(Math.random() * 180000);
+                }
+            }
         }
     }
 
@@ -450,6 +502,7 @@ Item {
             item.plate = plate;
             item.cornerRadius = Qt.binding(() => card.frameRadius);
             item.tint = Qt.binding(() => card.glowColor);
+            item.breathe = Qt.binding(() => card.bloomBreathe && card.live);
         }
     }
 }

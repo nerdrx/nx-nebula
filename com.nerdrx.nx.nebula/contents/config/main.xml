@@ -73,6 +73,22 @@
       <label>Longitude for the weather, entered by hand</label>
       <default></default>
     </entry>
+    <entry name="GlassSweep" type="bool">
+      <label>A specular sheen sweeps the photo tiles now and then</label>
+      <default>true</default>
+    </entry>
+    <entry name="BloomBreathe" type="bool">
+      <label>The photo glow breathes on a slow period</label>
+      <default>true</default>
+    </entry>
+    <entry name="Entrance" type="bool">
+      <label>An entrance choreography once per load</label>
+      <default>true</default>
+    </entry>
+    <entry name="ClockFx" type="bool">
+      <label>Minute dissolves and an hourly pulse along the divider</label>
+      <default>true</default>
+    </entry>
     <entry name="BurnInGuard" type="bool">
       <label>Wander static elements a few pixels to spare OLED panels</label>
       <default>true</default>

@@ -40,6 +40,43 @@ WallpaperItem {
         root.loading = true;
     }
 
+    /*
+        The entrance: once per load, the wall says hello — nebula fades up,
+        the photo row rises into place, the clock's letters track in from
+        wide. Skipped wholesale under reduced motion or when switched off.
+    */
+    readonly property bool wantsIntro: root.configuration.Entrance && !root.reducedMotion
+
+    onOnScreenChanged: {
+        if (root.onScreen && root.wantsIntro && !introDone.value) {
+            introDone.value = true;
+            intro.start();
+        }
+    }
+
+    QtObject { id: introDone; property bool value: false }
+
+    SequentialAnimation {
+        id: intro
+        ParallelAnimation {
+            NumberAnimation { target: nebula; property: "opacity"; from: 0; to: 1; duration: 1500; easing.type: Easing.OutQuad }
+            SequentialAnimation {
+                PauseAnimation { duration: 350 }
+                ParallelAnimation {
+                    NumberAnimation { target: gallery; property: "opacity"; from: 0; to: 1; duration: 1100; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: gallery; property: "introY"; from: 26; to: 0; duration: 1300; easing.type: Easing.OutCubic }
+                }
+            }
+            SequentialAnimation {
+                PauseAnimation { duration: 650 }
+                ParallelAnimation {
+                    NumberAnimation { target: clock; property: "opacity"; from: 0; to: 1; duration: 1200; easing.type: Easing.OutQuad }
+                    NumberAnimation { target: clock; property: "trackIn"; from: 1.8; to: 1; duration: 1600; easing.type: Easing.OutCubic }
+                }
+            }
+        }
+    }
+
     NebulaLayer {
         id: nebula
         anchors.fill: parent
@@ -61,6 +98,11 @@ WallpaperItem {
         onReadyChanged: {
             if (nebula.ready) {
                 root.loading = false;
+                // The intro belongs to the moment there is something to see.
+                if (root.wantsIntro && !introDone.value) {
+                    introDone.value = true;
+                    intro.start();
+                }
             }
         }
     }
@@ -83,6 +125,8 @@ WallpaperItem {
     GalleryLayer {
         id: gallery
         anchors.fill: parent
+        property real introY: 0
+        transform: Translate { y: gallery.introY }
         visible: root.galleryMode
         live: root.live && gallery.visible
 
@@ -98,6 +142,8 @@ WallpaperItem {
         shuffle: root.configuration.Shuffle
         burnInGuard: root.configuration.BurnInGuard
         snowCover: weather.snowDepth
+        sweepOn: root.configuration.GlassSweep
+        bloomBreathe: root.configuration.BloomBreathe
     }
 
     ClockOverlay {
@@ -112,5 +158,6 @@ WallpaperItem {
         // The burn-in wander is motion, so it obeys `live` (and with it
         // reduced motion), unlike the clock's once-a-minute text tick.
         drift: root.live && root.configuration.BurnInGuard
+        manners: root.configuration.ClockFx
     }
 }

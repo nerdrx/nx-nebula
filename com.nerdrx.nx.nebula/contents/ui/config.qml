@@ -98,6 +98,18 @@ Kirigami.FormLayout {
     property alias cfg_BurnInGuard: burnInGuard.checked
     property bool cfg_BurnInGuardDefault: true
 
+    property alias cfg_GlassSweep: glassSweep.checked
+    property bool cfg_GlassSweepDefault: true
+
+    property alias cfg_BloomBreathe: bloomBreathe.checked
+    property bool cfg_BloomBreatheDefault: true
+
+    property alias cfg_Entrance: entrance.checked
+    property bool cfg_EntranceDefault: true
+
+    property alias cfg_ClockFx: clockFx.checked
+    property bool cfg_ClockFxDefault: true
+
     property alias cfg_UltrawideGallery: ultrawide.checked
     property bool cfg_UltrawideGalleryDefault: true
 
@@ -268,6 +280,12 @@ Kirigami.FormLayout {
     }
 
     QQC2.CheckBox {
+        id: entrance
+        Kirigami.FormData.label: i18nd(root.dom, "Glass:")
+        text: i18nd(root.dom, "An entrance choreography at login")
+    }
+
+    QQC2.CheckBox {
         id: burnInGuard
         Kirigami.FormData.label: i18nd(root.dom, "Panel:")
         text: i18nd(root.dom, "OLED care — static things wander a few pixels")
@@ -361,6 +379,19 @@ Kirigami.FormLayout {
         Kirigami.FormData.label: i18nd(root.dom, "Captions:")
         enabled: root.galleryOn
         text: i18nd(root.dom, "The file name, under each photo")
+    }
+
+    QQC2.CheckBox {
+        id: glassSweep
+        Kirigami.FormData.label: i18nd(root.dom, "Sheen:")
+        enabled: root.galleryOn
+        text: i18nd(root.dom, "A light sweep across the tiles now and then")
+    }
+
+    QQC2.CheckBox {
+        id: bloomBreathe
+        enabled: root.galleryOn
+        text: i18nd(root.dom, "Let the photo glow breathe")
     }
 
     // ----------------------------------------------------------- shape & fit
@@ -467,6 +498,12 @@ Kirigami.FormLayout {
         ]
         currentIndex: root.cfg_TimeFormat
         onActivated: root.cfg_TimeFormat = currentIndex
+    }
+
+    QQC2.CheckBox {
+        id: clockFx
+        enabled: showClock.checked
+        text: i18nd(root.dom, "Minute dissolves, and a pulse along the divider on the hour")
     }
 
     QQC2.CheckBox {

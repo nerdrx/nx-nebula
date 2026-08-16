@@ -45,6 +45,12 @@ Item {
         there. Fed by NebulaLayer through main.qml. */
     property string almanac: ""
 
+    /** Minute dissolves and the hour pulse. */
+    property bool manners: true
+
+    /** Entrance tracking multiplier; the intro animates it 1.8 -> 1. */
+    property real trackIn: 1
+
     onTimeFormatChanged: clock.refresh()
 
     readonly property real daySize: Math.max(18, Math.round(height * 0.075))
@@ -106,6 +112,9 @@ Item {
             // Worst case here is one extra refresh 16ms after a tick.
             const remaining = 60000 - (now.getSeconds() * 1000 + now.getMilliseconds());
             tick.interval = Math.max(16, remaining);
+            if (clock.manners && now.getMinutes() === 0 && now.getSeconds() < 5) {
+                chimeAnim.restart();
+            }
         }
     }
 
@@ -184,7 +193,7 @@ Item {
                 styleColor: Qt.rgba(0, 0, 0, 0.55)
                 font.pixelSize: clock.daySize
                 font.weight: Font.DemiBold
-                font.letterSpacing: clock.daySize * 0.35
+                font.letterSpacing: clock.daySize * 0.35 * clock.trackIn
             }
 
             Text {
@@ -197,7 +206,7 @@ Item {
                 styleColor: Qt.rgba(0, 0, 0, 0.5)
                 font.pixelSize: clock.dateSize
                 font.weight: Font.Medium
-                font.letterSpacing: clock.dateSize * 0.34
+                font.letterSpacing: clock.dateSize * 0.34 * clock.trackIn
             }
 
             // The one NX flourish: violet into cyan, fading out at both ends so

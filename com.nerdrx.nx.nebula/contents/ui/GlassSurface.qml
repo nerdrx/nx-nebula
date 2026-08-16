@@ -41,6 +41,19 @@ Item {
     /** Room the bloom gets on every side of the card. */
     readonly property int reach: 120
 
+    /** Swells the bloom ±0.05 on a slow period when on. */
+    property bool breathe: false
+    property real swell: 0
+
+    SequentialAnimation {
+        running: true
+        paused: !glass.breathe
+        loops: Animation.Infinite
+        NumberAnimation { target: glass; property: "swell"; from: 0; to: 0.05; duration: 4400; easing.type: Easing.InOutSine }
+        NumberAnimation { target: glass; property: "swell"; from: 0.05; to: -0.04; duration: 8800; easing.type: Easing.InOutSine }
+        NumberAnimation { target: glass; property: "swell"; from: -0.04; to: 0; duration: 4400; easing.type: Easing.InOutSine }
+    }
+
     // A solid card-shape in the tint colour, blurred outward. Everything
     // inside the card's own outline is hidden behind the picture; only the
     // halo escapes. The subtree is oversized and the shape inset back to
@@ -71,7 +84,7 @@ Item {
             blurEnabled: true
             blur: 1.0
             blurMax: 40
-            opacity: 0.34
+            opacity: 0.34 + glass.swell
         }
     }
 

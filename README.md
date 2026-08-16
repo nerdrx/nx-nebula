@@ -84,6 +84,13 @@ transform and opacity only, fully paused whenever the desktop isn't visible.
   storm the aurora runs riot — every few minutes, half again as bright,
   from dusk onward. When there's an aurora outside, there's one on the wall.
 
+- **The glass behaves like glass** — a specular sheen sweeps a photo tile
+  every couple of minutes, the photo-tinted glow breathes on a slow period,
+  minute changes dissolve instead of snapping, the hour sends one pulse of
+  light along the clock's divider, and every login opens with a two-second
+  entrance — nebula up, tiles rising, the clock's letters tracking in.
+  Each of these has its own switch.
+
 ## The look
 
 ![The celestial bodies](docs/celestials.png)

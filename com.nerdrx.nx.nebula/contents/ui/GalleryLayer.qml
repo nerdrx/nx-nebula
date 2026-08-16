@@ -46,6 +46,9 @@ Item {
     property bool burnInGuard: true
     /** Settled snow from the weather layer, laid on the tiles. */
     property real snowCover: 0
+    /** The specular sweep and the breathing bloom. */
+    property bool sweepOn: true
+    property bool bloomBreathe: true
 
     /** True when the photos hide the nebula completely; it can stop drawing. */
     readonly property bool covered: cardsReady
@@ -601,6 +604,8 @@ Item {
             live: gallery.live
             caption: gallery.captions && gallery.framed
             snowCover: gallery.framed ? gallery.snowCover : 0
+            sweepOn: gallery.sweepOn
+            bloomBreathe: gallery.bloomBreathe
             onSourceFailed: gallery.skipFailed(0)
         }
 
@@ -615,6 +620,8 @@ Item {
             live: gallery.live
             caption: gallery.captions && gallery.framed
             snowCover: gallery.framed ? gallery.snowCover : 0
+            sweepOn: gallery.sweepOn
+            bloomBreathe: gallery.bloomBreathe
             onSourceFailed: gallery.skipFailed(1)
         }
 
@@ -629,6 +636,8 @@ Item {
             live: gallery.live
             caption: gallery.captions && gallery.framed
             snowCover: gallery.framed ? gallery.snowCover : 0
+            sweepOn: gallery.sweepOn
+            bloomBreathe: gallery.bloomBreathe
             onSourceFailed: gallery.skipFailed(2)
         }
     }
