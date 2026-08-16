@@ -41,6 +41,9 @@ Item {
     /** Show the photo's cleaned-up file name under the card. */
     property bool caption: false
 
+    /** How much snow has settled on the tile, 0..1, from the weather. */
+    property real snowCover: 0
+
     /** Corner radius, DESIGN --radius scaled to the screen. */
     property real frameRadius: 6
 
@@ -395,6 +398,22 @@ Item {
             Slot { id: imgA; shown: card.useA }
             Slot { id: imgB; shown: !card.useA }
         }
+    }
+
+    // Snow on the tile. It gathers along the top edge as the real snow
+    // falls, and melts away after — the wall remembers the weather.
+    Image {
+        source: "../images/snowcap.png"
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.topMargin: -height * 0.35
+        height: card.height * 0.05 * Math.min(1, card.snowCover * 1.4)
+        fillMode: Image.Stretch
+        smooth: true
+        asynchronous: true
+        visible: card.snowCover > 0.01
+        opacity: 0.9 * Math.min(1, card.snowCover * 3)
     }
 
     /*

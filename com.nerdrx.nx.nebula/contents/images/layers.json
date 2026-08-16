@@ -117,6 +117,11 @@
     "width": 1600,
     "height": 900
   },
+  "snowcap": {
+    "file": "snowcap.png",
+    "width": 1024,
+    "height": 128
+  },
   "starCount": 1020,
   "referenceStarCount": 900,
   "twinkleSwing": 0.22

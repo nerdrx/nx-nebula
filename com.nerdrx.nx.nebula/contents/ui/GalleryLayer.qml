@@ -44,6 +44,8 @@ Item {
     property bool captions: false
     /** OLED care: wander the card row a few pixels over minutes. */
     property bool burnInGuard: true
+    /** Settled snow from the weather layer, laid on the tiles. */
+    property real snowCover: 0
 
     /** True when the photos hide the nebula completely; it can stop drawing. */
     readonly property bool covered: cardsReady
@@ -598,6 +600,7 @@ Item {
             frameRadius: gallery.frameRadius
             live: gallery.live
             caption: gallery.captions && gallery.framed
+            snowCover: gallery.framed ? gallery.snowCover : 0
             onSourceFailed: gallery.skipFailed(0)
         }
 
@@ -611,6 +614,7 @@ Item {
             frameRadius: gallery.frameRadius
             live: gallery.live
             caption: gallery.captions && gallery.framed
+            snowCover: gallery.framed ? gallery.snowCover : 0
             onSourceFailed: gallery.skipFailed(1)
         }
 
@@ -624,6 +628,7 @@ Item {
             frameRadius: gallery.frameRadius
             live: gallery.live
             caption: gallery.captions && gallery.framed
+            snowCover: gallery.framed ? gallery.snowCover : 0
             onSourceFailed: gallery.skipFailed(2)
         }
     }

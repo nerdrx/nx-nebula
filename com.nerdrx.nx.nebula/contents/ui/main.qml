@@ -55,6 +55,8 @@ WallpaperItem {
         southern: root.configuration.Southern
         realSky: root.configuration.RealSky
         clarity: weather.clarity
+        kp: weather.kp
+        lightning: weather.flash
 
         onReadyChanged: {
             if (nebula.ready) {
@@ -72,6 +74,7 @@ WallpaperItem {
         enabled: root.configuration.Weather
             && String(root.configuration.WeatherLat).length > 0
             && String(root.configuration.WeatherLon).length > 0
+        spaceWeather: root.configuration.SpaceWeather
         latitude: Number(root.configuration.WeatherLat)
         longitude: Number(root.configuration.WeatherLon)
         live: root.live && !(root.galleryMode && gallery.covered)
@@ -94,6 +97,7 @@ WallpaperItem {
         interval: Math.max(5, root.configuration.Interval)
         shuffle: root.configuration.Shuffle
         burnInGuard: root.configuration.BurnInGuard
+        snowCover: weather.snowDepth
     }
 
     ClockOverlay {

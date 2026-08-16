@@ -76,6 +76,14 @@ transform and opacity only, fully paused whenever the desktop isn't visible.
   the nebula. Four numbers from open-meteo.com twice an hour, coordinates
   typed by hand, nothing fetched until you switch it on.
 
+- **Storms** — when Open-Meteo reports a thunderstorm overhead, lightning
+  flashes *behind* the cloud deck every half minute or so, silhouetting the
+  billows and lighting the nebula itself. While snow falls, it settles on
+  the photo tiles and melts away after. And with space weather enabled, the
+  wallpaper watches NOAA's planetary Kp index: during a real geomagnetic
+  storm the aurora runs riot — every few minutes, half again as bright,
+  from dusk onward. When there's an aurora outside, there's one on the wall.
+
 ## The look
 
 ![The celestial bodies](docs/celestials.png)

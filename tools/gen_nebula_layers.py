@@ -155,6 +155,8 @@ REALSKY_REACH = 130.0     # degrees of pole distance on the disc edge
 
 CLOUDS_W, CLOUDS_H = 1600, 900
 
+SNOWCAP_W, SNOWCAP_H = 1024, 128
+
 MW_W, MW_H = 1600, 900
 
 COMET_W, COMET_H = 1024, 256
@@ -693,6 +695,23 @@ def build_venus() -> tuple[Image.Image, dict]:
     return Image.fromarray(out, mode="RGBA"), meta
 
 
+def build_snowcap() -> tuple[Image.Image, dict]:
+    """Snow settled on an edge: solid at the top, an irregular melted lower
+    boundary, ends dissolved so it never shows a seam on a card."""
+    rng = np.random.default_rng(SEED ^ 0x5104)
+    w, h = SNOWCAP_W, SNOWCAP_H
+    x = ((np.arange(w, dtype=np.float32) + 0.5) / w).reshape(1, w)
+    y = ((np.arange(h, dtype=np.float32) + 0.5) / h).reshape(h, 1)
+    edge = 0.30 + 0.42 * _smooth_noise(rng, w, 1, (5, 11, 23))[0].reshape(1, w)
+    alpha = np.clip((edge - y) / 0.10 + 0.5, 0.0, 1.0)
+    alpha *= smoothstep(x / 0.04) * smoothstep((1.0 - x) / 0.04)
+    tint = hex_rgb("#f4f2fa")
+    out = np.empty((h, w, 4), dtype=np.uint8)
+    out[:, :, :3] = np.clip(np.rint(tint.reshape(1, 1, 3) * np.ones((h, w, 3)) * 255.0), 0, 255)
+    out[:, :, 3] = np.clip(np.rint(alpha * 255.0), 0, 255)
+    return Image.fromarray(out, mode="RGBA"), {"file": "snowcap.png", "width": w, "height": h}
+
+
 # --------------------------------------------------------------------------
 # vignette + grain
 # --------------------------------------------------------------------------
@@ -894,6 +913,7 @@ def build(root: str) -> None:
         ("realskyNorth", lambda: build_realsky(False)),
         ("realskySouth", lambda: build_realsky(True)),
         ("clouds", build_clouds),
+        ("snowcap", build_snowcap),
     ):
         sprite, entry = builder()
         size = save_png(sprite, os.path.join(root, IMAGES_DIR, entry["file"]))
@@ -953,6 +973,7 @@ def check(root: str) -> int:
         ("realskyNorth", (REALSKY_SIZE, REALSKY_SIZE)),
         ("realskySouth", (REALSKY_SIZE, REALSKY_SIZE)),
         ("clouds", (CLOUDS_W, CLOUDS_H)),
+        ("snowcap", (SNOWCAP_W, SNOWCAP_H)),
     ):
         if key in meta:
             expected.append((meta[key]["file"], dims))

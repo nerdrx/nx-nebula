@@ -62,6 +62,9 @@ Kirigami.FormLayout {
     property alias cfg_WeatherLon: weatherLon.text
     property string cfg_WeatherLonDefault: ""
 
+    property alias cfg_SpaceWeather: spaceWeather.checked
+    property bool cfg_SpaceWeatherDefault: false
+
     property int cfg_Mode: 0
     property int cfg_ModeDefault: 0
 
@@ -235,13 +238,19 @@ Kirigami.FormLayout {
         }
     }
 
+    QQC2.CheckBox {
+        id: spaceWeather
+        text: i18nd(root.dom, "Space weather — real geomagnetic storms bring storm auroras")
+    }
+
     QQC2.Label {
         Layout.maximumWidth: Kirigami.Units.gridUnit * 22
         enabled: weatherOn.checked
         wrapMode: Text.WordWrap
         font: Kirigami.Theme.smallFont
         text: i18nd(root.dom,
-            "Cloud cover veils the stars and grounds the meteor showers; rain "
+            "Thunderstorms flash lightning behind the clouds, and settled snow "
+            + "gathers on the photo tiles. Cloud cover veils the stars and grounds the meteor showers; rain "
             + "and snow fall in front of the nebula. The coordinates you type "
             + "here go to open-meteo.com twice an hour and nowhere else — no "
             + "account, no key, and nothing is fetched until you opt in.")

@@ -65,6 +65,10 @@
       <label>Latitude for the weather, entered by hand</label>
       <default></default>
     </entry>
+    <entry name="SpaceWeather" type="bool">
+      <label>Fetch NOAA's Kp index; geomagnetic storms bring storm auroras</label>
+      <default>false</default>
+    </entry>
     <entry name="WeatherLon" type="String">
       <label>Longitude for the weather, entered by hand</label>
       <default></default>

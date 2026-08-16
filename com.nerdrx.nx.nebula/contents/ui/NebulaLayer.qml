@@ -70,6 +70,14 @@ Item {
         in place of the authored far starfield. */
     property bool realSky: false
 
+    /** Live geomagnetic activity (NOAA Kp). At 5 the aurora runs riot:
+        events every few minutes, brighter and earlier in the evening. */
+    property real kp: 0
+
+    /** Lightning brightness from the weather layer; a strike lights the
+        nebula bodies the way it lights real clouds. */
+    property real lightning: 0
+
     /** How clear the sky is, 0..1. Fed by the weather layer when the user
         opts in; 1 means tonight is whatever the almanac promised. */
     property real clarity: 1
@@ -309,8 +317,8 @@ Item {
         y: nebula.height * relY - height / 2
         rotation: spin
         scale: 1 + breathe
-        // ±7% around the authored value: a touch deeper in the dark.
-        opacity: blobOpacity * (0.93 + 0.14 * nebula.nightNow)
+        // ±7% around the authored value — and lit hard by lightning.
+        opacity: blobOpacity * (0.93 + 0.14 * nebula.nightNow) * (1 + 3.0 * nebula.lightning)
 
         fillMode: Image.Stretch
         smooth: true
@@ -779,10 +787,16 @@ Item {
             repeat: true
             interval: 720000 + Math.round(Math.random() * 1380000)
             onTriggered: {
-                if (nebula.skyFactor(new Date()) >= 0.65 && nebula.clarity >= 0.45) {
+                // A geomagnetic storm rewrites the rules: auroras every few
+                // minutes, from dusk, even through thin cloud.
+                const stormy = nebula.kp >= 5;
+                const dark = nebula.skyFactor(new Date()) >= (stormy ? 0.5 : 0.65);
+                if (dark && (stormy || nebula.clarity >= 0.45)) {
                     nebula.auroraNow();
                 }
-                interval = 720000 + Math.round(Math.random() * 1380000);
+                interval = stormy
+                    ? 180000 + Math.round(Math.random() * 300000)
+                    : 720000 + Math.round(Math.random() * 1380000);
             }
         }
 
@@ -1006,7 +1020,10 @@ Item {
         auroraCurtain.rotation = -8 + Math.random() * 16;
 
         const life = 120000 + Math.round(Math.random() * 120000);
-        const peak = 0.09 + Math.random() * 0.06;   // sprite contract: <= 0.14ish
+        // A storm aurora is a different animal: up to half again as bright.
+        const peak = nebula.kp >= 5
+            ? 0.14 + 0.08 * Math.min(1, (nebula.kp - 5) / 3)
+            : 0.09 + Math.random() * 0.06;
 
         auroraSlide.from = 0;
         auroraSlide.to = nebula.unit * (Math.random() < 0.5 ? 0.03 : -0.03);
@@ -1073,6 +1090,8 @@ Item {
         satY.to = ey;
         satY.duration = life;
 
+        // One pass in four catches the sun and flares hard.
+        satFlare.to = Math.random() < 0.25 ? 1.0 : 0.8;
         satIn.duration = Math.round(life * 0.12);
         satFlare.duration = Math.round(life * 0.30);
         satFade.duration = Math.round(life * 0.30);
