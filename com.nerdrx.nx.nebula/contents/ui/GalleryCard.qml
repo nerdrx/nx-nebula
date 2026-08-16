@@ -57,7 +57,7 @@ Item {
     scale: 1 + 0.01 * attention
 
     Behavior on attention {
-        NumberAnimation { duration: 900; easing.type: Easing.InOutQuad }
+        NumberAnimation { duration: 400; easing.type: Easing.InOutQuad }
     }
 
     onAttentionChanged: {

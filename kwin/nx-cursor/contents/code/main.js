@@ -3,7 +3,7 @@
 let last = 0;
 workspace.cursorPosChanged.connect(() => {
     const now = Date.now();
-    if (now - last < 120) {
+    if (now - last < 60) {
         return;
     }
     last = now;
