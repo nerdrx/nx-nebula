@@ -88,6 +88,10 @@ WallpaperItem {
     property real px: 0.5
     property real py: 0.5
 
+    /** The unsmoothed position: for things that must sit ON the cursor. */
+    property real pxRaw: 0.5
+    property real pyRaw: 0.5
+
     Behavior on px { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
     Behavior on py { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
 
@@ -203,8 +207,10 @@ WallpaperItem {
             return;
         }
         root.bridgeSeen = true;
-        root.px = Math.max(0, Math.min(1, (Number(parts[1]) - root.screenX) / Math.max(1, Screen.width)));
-        root.py = Math.max(0, Math.min(1, (Number(parts[2]) - root.screenY) / Math.max(1, Screen.height)));
+        root.pxRaw = Math.max(0, Math.min(1, (Number(parts[1]) - root.screenX) / Math.max(1, Screen.width)));
+        root.pyRaw = Math.max(0, Math.min(1, (Number(parts[2]) - root.screenY) / Math.max(1, Screen.height)));
+        root.px = root.pxRaw;
+        root.py = root.pyRaw;
     }
 
     NebulaLayer {
@@ -240,19 +246,43 @@ WallpaperItem {
         }
     }
 
-    // The sky noticing you: a soft violet glow that arrives a second late
-    // wherever the pointer rests.
-    Image {
-        source: "../images/star-bright.png"
-        readonly property real span: Math.sqrt(root.width * root.height) * 0.45
-        width: span
-        height: span
-        x: root.px * root.width - span / 2
-        y: root.py * root.height - span / 2
-        opacity: root.live && root.configuration.PointerGlow ? 0.05 : 0
-        smooth: true
-        asynchronous: true
-        visible: opacity > 0.004
+    /*
+        The cursor's star: the head rides the RAW position — a 35ms ease
+        only bridges transport frames, never reads as lag — while five
+        ghosts on staggered eases string out into a comet trail behind any
+        motion and collapse back into the star the moment the hand rests.
+    */
+    Repeater {
+        model: 6
+
+        delegate: Image {
+            id: ember
+
+            required property int index
+
+            source: "../images/star-bright.png"
+
+            readonly property bool head: index === 0
+            readonly property real span: Math.sqrt(root.width * root.height)
+                * (head ? 0.055 : 0.048 - 0.006 * index)
+            property real fx: root.pxRaw
+            property real fy: root.pyRaw
+
+            Behavior on fx { NumberAnimation { duration: 35 + ember.index * 55; easing.type: Easing.OutQuad } }
+            Behavior on fy { NumberAnimation { duration: 35 + ember.index * 55; easing.type: Easing.OutQuad } }
+
+            width: span
+            height: span
+            x: fx * root.width - span / 2
+            y: fy * root.height - span / 2
+            z: -index
+            opacity: root.live && root.configuration.PointerGlow
+                ? (head ? 0.38 : 0.20 - 0.03 * index)
+                : 0
+            smooth: true
+            asynchronous: true
+            visible: opacity > 0.004
+        }
     }
 
     WeatherLayer {
