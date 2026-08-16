@@ -1,0 +1,9 @@
+[Unit]
+Description=NX Nebula cursor bridge
+
+[Service]
+ExecStart=%h/.local/bin/nx-cursor-helper.py
+Restart=on-failure
+
+[Install]
+WantedBy=graphical-session.target

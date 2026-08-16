@@ -1,0 +1,13 @@
+{
+    "KPlugin": {
+        "Id": "nx-cursor",
+        "Name": "NX Cursor Bridge",
+        "Description": "Feeds the pointer position to the NX Nebula wallpaper",
+        "Authors": [{ "Name": "nerdrx" }],
+        "License": "GPL-3.0-or-later",
+        "Version": "1.0"
+    },
+    "X-Plasma-API": "javascript",
+    "X-Plasma-MainScript": "code/main.js",
+    "KPackageStructure": "KWin/Script"
+}

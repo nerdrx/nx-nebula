@@ -21,6 +21,7 @@ import QtQuick
 import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.plasmoid
+import org.kde.plasma.plasma5support as P5Support
 
 WallpaperItem {
     id: root
@@ -89,15 +90,30 @@ WallpaperItem {
     Behavior on px { NumberAnimation { duration: 1100; easing.type: Easing.OutQuad } }
     Behavior on py { NumberAnimation { duration: 1100; easing.type: Easing.OutQuad } }
 
-    MouseArea {
-        anchors.fill: parent
-        hoverEnabled: root.live && (root.configuration.PointerParallax
-            || root.configuration.PointerGlow || root.configuration.PointerTile)
-        acceptedButtons: Qt.NoButton
-        propagateComposedEvents: true
-        onPositionChanged: mouse => {
-            root.px = mouse.x / Math.max(1, width);
-            root.py = mouse.y / Math.max(1, height);
+    /*
+        plasmashell never delivers hover to the wallpaper layer, so the
+        position comes from the nx-cursor bridge: a KWin script (the one
+        Wayland party that knows the cursor) pushes coordinates to a tiny
+        DBus helper that mirrors them into a runtime file, and this polls
+        that at 5 Hz — far below the 1.1s smoothing above it. Global
+        coordinates, mapped into this screen via the window position.
+    */
+    P5Support.DataSource {
+        id: cursorPoll
+        engine: "executable"
+        interval: root.live && (root.configuration.PointerParallax
+            || root.configuration.PointerGlow || root.configuration.PointerTile) ? 200 : 0
+        connectedSources: ["cat \"${XDG_RUNTIME_DIR:-/tmp}/nx-cursor\" 2>/dev/null"]
+        onNewData: (source, data) => {
+            const parts = String(data.stdout || "").trim().split(" ");
+            if (parts.length !== 2) {
+                return;
+            }
+            const win = root.Window.window;
+            const gx = Number(parts[0]) - (win ? win.x : 0);
+            const gy = Number(parts[1]) - (win ? win.y : 0);
+            root.px = Math.max(0, Math.min(1, gx / Math.max(1, root.width)));
+            root.py = Math.max(0, Math.min(1, gy / Math.max(1, root.height)));
         }
     }
 
