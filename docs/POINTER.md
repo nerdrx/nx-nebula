@@ -10,15 +10,17 @@ sulks, and what is still left to build.
 KWin (workspace.cursorPos, the only Wayland party that knows)
   └─ kwin/nx-cursor script      pushes x,y over DBus, 16ms throttle
        └─ nx-cursor-helper.py   owns com.nerdrx.nxcursor on the session bus
-            └─ renames $XDG_RUNTIME_DIR/nx-cursor.d/p_<x>_<y>
-                 └─ wallpaper FolderListModel hears the rename via inotify
-                      └─ 120ms OutCubic Behavior → parallax / glow / tile
+            └─ broadcasts "x y" on ws://127.0.0.1:38470 (stdlib server)
+                 └─ wallpaper QtWebSockets client, per-event delivery
+                      └─ 90ms ease (parallax) / raw + trail (cursor star)
 ```
 
-No polling anywhere: the position travels as a file *rename*, one inotify
-event, sub-5ms. The helper also stamps `v_2` in the same directory; the
-wallpaper restarts the service once if positions flow without that marker
-(the post-update state: new files on disk, old process running).
+No polling, no filesystem: positions stream over a loopback WebSocket.
+If nothing arrives within 4s while pointer effects are on, the wallpaper
+restarts the helper (systemctl restart, falling back to systemd-run) —
+that one move covers a dead helper, a stale pre-socket generation still
+holding the DBus name, and a missing unit alike. The nx-cursor.d dir is
+now only swept for older generations' leftovers, never written.
 
 ## Install / update, manually
 

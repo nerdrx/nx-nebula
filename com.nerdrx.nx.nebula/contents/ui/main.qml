@@ -22,7 +22,7 @@ import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.plasmoid
 import org.kde.plasma.plasma5support as P5Support
-import Qt.labs.folderlistmodel
+import QtWebSockets
 
 WallpaperItem {
     id: root
@@ -135,82 +135,54 @@ WallpaperItem {
     readonly property bool pointerWanted: root.live && (root.configuration.PointerParallax
         || root.configuration.PointerGlow || root.configuration.PointerTile)
 
-    // One spawn ever: where is the runtime dir?
-    P5Support.DataSource {
-        id: runtimeDir
-        engine: "executable"
-        connectedSources: root.pointerWanted ? ["echo \"${XDG_RUNTIME_DIR:-/tmp}\""] : []
-        property string dir: ""
-        onNewData: (source, data) => {
-            runtimeDir.dir = String(data.stdout || "").trim();
-            runtimeDir.disconnectSource(source);
-        }
-    }
-
-    /*
-        The push path: the helper renames one file inside nx-cursor.d so
-        that the file NAME carries the position. This folder model hears
-        the rename through inotify the moment it happens — no polling, no
-        process spawns, no reads. The 120ms Behavior above interpolates
-        between pushes at the display's own frame rate.
-    */
-    FolderListModel {
-        id: cursorWatch
-        folder: root.pointerWanted && runtimeDir.dir.length > 0
-            ? "file://" + runtimeDir.dir + "/nx-cursor.d" : ""
-        nameFilters: ["p*"]
-        showDirs: false
-        onCountChanged: root.readCursor()
-        onFolderChanged: root.readCursor()
-    }
-
-    // A rename keeps the count at 1: the model reports it as dataChanged
-    // (measured: 40 renames = 1 countChanged, 39 dataChanged). Listen to
-    // every way the model can move, or the pointer goes deaf after the
-    // first position.
-    Connections {
-        target: cursorWatch
-        function onDataChanged() { root.readCursor(); }
-        function onRowsInserted() { root.readCursor(); }
-        function onRowsRemoved() { root.readCursor(); }
-        function onModelReset() { root.readCursor(); }
-    }
-
-    property bool healed: false
-
     // This screen's rectangle in the virtual desktop — the correct frame
     // for global cursor coordinates. Window positions lie on Wayland;
     // Screen.virtualX/Y do not.
     readonly property real screenX: Screen.virtualX
     readonly property real screenY: Screen.virtualY
 
-    function readCursor(): void {
-        let pos = "";
-        let stale = false;
-        for (let i = 0; i < cursorWatch.count; ++i) {
-            const n = String(cursorWatch.get(i, "fileName"));
-            if (n.indexOf("p2_") === 0) {
-                pos = n;
-            } else if (n.indexOf("p_") === 0) {
-                stale = true;   // an older helper generation is running
-            }
-        }
-        // Hub updates swap the file on disk but not the running process;
-        // a stale-prefix rename is the running process telling on itself.
-        // Restart it once — files-only self-healing, no hooks required.
-        if (stale && pos.length === 0 && !root.healed) {
-            root.healed = true;
-            bootstrap.connectSource("systemctl --user restart nx-cursor.service");
-        }
-        const parts = pos.split("_");
-        if (parts.length !== 3) {
-            return;
-        }
-        root.bridgeSeen = true;
-        root.pxRaw = Math.max(0, Math.min(1, (Number(parts[1]) - root.screenX) / Math.max(1, Screen.width)));
-        root.pyRaw = Math.max(0, Math.min(1, (Number(parts[2]) - root.screenY) / Math.max(1, Screen.height)));
+    function applyCursor(x: real, y: real): void {
+        root.pxRaw = Math.max(0, Math.min(1, (x - root.screenX) / Math.max(1, Screen.width)));
+        root.pyRaw = Math.max(0, Math.min(1, (y - root.screenY) / Math.max(1, Screen.height)));
         root.px = root.pxRaw;
         root.py = root.pyRaw;
+    }
+
+    /*
+        The realtime path: the helper broadcasts every position over a
+        loopback WebSocket the moment KWin reports it — uniform per-event
+        delivery, no filesystem anywhere. If nothing ever arrives, the
+        bootstrap above restarts the helper, which covers dead, stale,
+        and missing alike.
+    */
+    WebSocket {
+        id: cursorLive
+        url: "ws://127.0.0.1:38470"
+        active: root.pointerWanted
+        onTextMessageReceived: message => {
+            const parts = message.split(" ");
+            if (parts.length !== 2) {
+                return;
+            }
+            root.bridgeSeen = true;
+            root.applyCursor(Number(parts[0]), Number(parts[1]));
+        }
+        onStatusChanged: {
+            if ((status === WebSocket.Closed || status === WebSocket.Error) && root.pointerWanted) {
+                wsRetry.restart();
+            }
+        }
+    }
+
+    Timer {
+        id: wsRetry
+        interval: 4000
+        onTriggered: {
+            if (root.pointerWanted) {
+                cursorLive.active = false;
+                cursorLive.active = true;
+            }
+        }
     }
 
     NebulaLayer {
