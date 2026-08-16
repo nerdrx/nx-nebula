@@ -87,8 +87,8 @@ WallpaperItem {
     property real px: 0.5
     property real py: 0.5
 
-    Behavior on px { NumberAnimation { duration: 500; easing.type: Easing.OutCubic } }
-    Behavior on py { NumberAnimation { duration: 500; easing.type: Easing.OutCubic } }
+    Behavior on px { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+    Behavior on py { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
     /*
         plasmashell never delivers hover to the wallpaper layer, so the
@@ -131,7 +131,7 @@ WallpaperItem {
         id: cursorPoll
         engine: "executable"
         interval: root.live && (root.configuration.PointerParallax
-            || root.configuration.PointerGlow || root.configuration.PointerTile) ? 100 : 0
+            || root.configuration.PointerGlow || root.configuration.PointerTile) ? 33 : 0
         connectedSources: ["cat \"${XDG_RUNTIME_DIR:-/tmp}/nx-cursor\" 2>/dev/null"]
         onNewData: (source, data) => {
             const parts = String(data.stdout || "").trim().split(" ");

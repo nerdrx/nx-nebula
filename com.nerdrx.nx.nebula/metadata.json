@@ -13,7 +13,7 @@
         "License": "GPL-3.0-or-later",
         "Name": "NX Nebula (Live)",
         "Website": "https://github.com/nerdrx/nx-kde",
-        "Version": "1.13.4"
+        "Version": "1.13.5"
     },
     "Keywords": "",
     "X-KDE-ParentApp": "org.kde.plasmashell"
