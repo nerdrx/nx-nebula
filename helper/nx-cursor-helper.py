@@ -7,10 +7,12 @@ from gi.repository import Gio, GLib
 
 base = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "nx-cursor.d")
 os.makedirs(base, exist_ok=True)
-# Sweep older generations' droppings so the watcher only ever sees
-# one coherent story in this directory.
+# Sweep EVERYTHING at startup — older generations' files AND our own
+# previous run's last position. Each run must begin with an empty dir,
+# or every restart strands one file and the reader bounces between
+# stale coordinates (observed live: five orphans, one per restart).
 for old in os.listdir(base):
-    if old.startswith(("p_", "v_")):
+    if old.startswith(("p_", "v_", "p2_")):
         try:
             os.remove(os.path.join(base, old))
         except OSError:
