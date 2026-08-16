@@ -88,8 +88,8 @@ WallpaperItem {
     property real px: 0.5
     property real py: 0.5
 
-    Behavior on px { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-    Behavior on py { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+    Behavior on px { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+    Behavior on py { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
 
     /*
         plasmashell never delivers hover to the wallpaper layer, so the
@@ -174,6 +174,12 @@ WallpaperItem {
 
     property bool healed: false
 
+    // This screen's rectangle in the virtual desktop — the correct frame
+    // for global cursor coordinates. Window positions lie on Wayland;
+    // Screen.virtualX/Y do not.
+    readonly property real screenX: Screen.virtualX
+    readonly property real screenY: Screen.virtualY
+
     function readCursor(): void {
         let pos = "";
         let stale = false;
@@ -197,9 +203,8 @@ WallpaperItem {
             return;
         }
         root.bridgeSeen = true;
-        const win = root.Window.window;
-        root.px = Math.max(0, Math.min(1, (Number(parts[1]) - (win ? win.x : 0)) / Math.max(1, root.width)));
-        root.py = Math.max(0, Math.min(1, (Number(parts[2]) - (win ? win.y : 0)) / Math.max(1, root.height)));
+        root.px = Math.max(0, Math.min(1, (Number(parts[1]) - root.screenX) / Math.max(1, Screen.width)));
+        root.py = Math.max(0, Math.min(1, (Number(parts[2]) - root.screenY) / Math.max(1, Screen.height)));
     }
 
     NebulaLayer {
