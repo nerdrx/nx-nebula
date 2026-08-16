@@ -98,6 +98,35 @@ WallpaperItem {
         that at 5 Hz — far below the 1.1s smoothing above it. Global
         coordinates, mapped into this screen via the window position.
     */
+    /*
+        Self-bootstrap: if pointer effects are wanted but the bridge file
+        never freshens, enable the KWin script, poke KWin, and start the
+        helper as a transient user unit. Files-only installs (NX Hub's
+        manifest engine, or plain install.sh) thus need no post-install
+        hooks — the wallpaper finishes its own plumbing, once per session
+        at most, and only after the user opted into pointer effects.
+    */
+    property bool bridgeSeen: false
+    property bool bridgeKicked: false
+
+    Timer {
+        running: cursorPoll.interval > 0 && !root.bridgeSeen && !root.bridgeKicked
+        interval: 4000
+        onTriggered: {
+            root.bridgeKicked = true;
+            bootstrap.connectSource(
+                "kwriteconfig6 --file kwinrc --group Plugins --key nx-cursorEnabled true; "
+                + "qdbus6 org.kde.KWin /KWin reconfigure; "
+                + "systemctl --user start nx-cursor.service 2>/dev/null || "
+                + "systemd-run --user --unit=nx-cursor --collect \"$HOME/.local/bin/nx-cursor-helper.py\"");
+        }
+    }
+
+    P5Support.DataSource {
+        id: bootstrap
+        engine: "executable"
+    }
+
     P5Support.DataSource {
         id: cursorPoll
         engine: "executable"
@@ -109,6 +138,7 @@ WallpaperItem {
             if (parts.length !== 2) {
                 return;
             }
+            root.bridgeSeen = true;
             const win = root.Window.window;
             const gx = Number(parts[0]) - (win ? win.x : 0);
             const gy = Number(parts[1]) - (win ? win.y : 0);

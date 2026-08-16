@@ -20,9 +20,16 @@ NAME="nx-nebula-${VERSION}-linux.tar.gz"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
-mkdir -p "$STAGE/share/plasma/wallpapers" "$OUT"
+mkdir -p "$STAGE/share/plasma/wallpapers" "$STAGE/share/kwin/scripts" \
+  "$STAGE/share/systemd/user" "$STAGE/bin" "$OUT"
 cp -r "$PLUGIN" "$STAGE/share/plasma/wallpapers/"
-tar -czf "$OUT/$NAME" -C "$STAGE" share
+# The cursor bridge rides along as plain files; the wallpaper bootstraps
+# the service and the KWin script itself on first use, so the hub's
+# file-manifest engine is all the install logic anyone needs.
+cp -r kwin/nx-cursor "$STAGE/share/kwin/scripts/"
+cp helper/nx-cursor-helper.py "$STAGE/bin/"
+cp helper/nx-cursor.service "$STAGE/share/systemd/user/"
+tar -czf "$OUT/$NAME" -C "$STAGE" share bin
 ( cd "$OUT" && sha256sum "$NAME" > "$NAME.sha256" )
 echo "packaged: $OUT/$NAME ($(du -h "$OUT/$NAME" | cut -f1))"
 
